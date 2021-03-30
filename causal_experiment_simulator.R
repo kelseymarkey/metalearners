@@ -420,7 +420,8 @@ mu0.simulate_causal_experiment <- list(
   -2 / ((1 + exp(-12 * (feat$x1 - 0.5))) *
          (1 + exp(-12 * (feat$x2 - 0.5)))
        )
-}
+  },
+  sim4 = function(feat) {2 * feat$x1 -1}
 )
 
 # tau functions ----------------------------------------------------------------
@@ -512,4 +513,15 @@ simulated_experiment3 <- simulate_causal_experiment(
   pscore='rct5',
   mu0='sim3',
   tau='sim3'
+)
+
+###Simulation 4
+simulated_experiment3 <- simulate_causal_experiment(
+  ntrain = 300000,
+  ntest = 100000,
+  feat_distribution = "unif",
+  dim = 20,
+  pscore='osSparse1Beta',
+  mu0='sim4',
+  tau='no'
 )
