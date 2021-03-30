@@ -6,6 +6,7 @@ train_size <- 300000
 
 
 # Simulation A (recreating SI Simulation 1)
+# alpha = default of 0.1 ?
 simA <- simulate_causal_experiment(
   ntrain = train_size,
   ntest = 100000,
@@ -17,6 +18,7 @@ simA <- simulate_causal_experiment(
 )
 
 # Simulation B (recreating SI Simulation 2)
+# alpha = default of 0.1 ?
 # simB <- simulate_causal_experiment(
 #   ntrain = train_size,
 #   ntest = 100000,
@@ -28,6 +30,7 @@ simA <- simulate_causal_experiment(
 # )
 
 # Simulation C (recreating SI Simulation 3)
+# alpha = default of 0.1 ?
 simC <- simulate_causal_experiment(
   ntrain = train_size,
   ntest = 100000,
