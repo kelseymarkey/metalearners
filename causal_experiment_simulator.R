@@ -409,7 +409,18 @@ mu0.simulate_causal_experiment <- list(
     
     beta <- runif(d, -5, 5)
     as.matrix(feat) %*% beta + ifelse(feat$x1 > 0.5, 5, 0)
-  }
+  },
+  sim2 = function(feat) {
+    # Set seed?
+    d <- ncol(feat)
+    beta <- runif(d, 1, 30)
+    as.matrix(feat) %*% beta
+  },
+  sim3 = function(feat) {
+  -2 / ((1 + exp(-12 * (feat$x1 - 0.5))) *
+         (1 + exp(-12 * (feat$x2 - 0.5)))
+       )
+}
 )
 
 # tau functions ----------------------------------------------------------------
@@ -460,6 +471,12 @@ tau.simulate_causal_experiment <- list(
   },
   sim1 = function(feat) {
     ifelse(feat$x2 > 0.1, 8, 0)
+  },
+  # sim2 =
+  sim3 = function(feat) {
+    4 / ((1 + exp(-12 * (feat$x1 - 0.5))) *
+            (1 + exp(-12 * (feat$x2 - 0.5)))
+    )
   }
 )
 
@@ -472,4 +489,27 @@ simulated_experiment1 <- simulate_causal_experiment(
   pscore='rct01',
   mu0='sim1',
   tau='sim1'
+)
+
+###Simulation 2
+# simulated_experiment2 <- simulate_causal_experiment(
+#   ntrain = 300000,
+#   ntest = 100000,
+#   feat_distribution = "normal",
+#   dim = 20,
+#   pscore='rct5',
+#   mu0='sim2',
+#   tau= ???
+# )
+
+
+###Simulation 3
+simulated_experiment3 <- simulate_causal_experiment(
+  ntrain = 300000,
+  ntest = 100000,
+  feat_distribution = "normal",
+  dim = 20,
+  pscore='rct5',
+  mu0='sim3',
+  tau='sim3'
 )
