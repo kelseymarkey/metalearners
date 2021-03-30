@@ -6,7 +6,7 @@ train_size <- 300000
 
 
 # Simulation A (recreating SI Simulation 1)
-simulated_experimenta <- simulate_causal_experiment(
+simA <- simulate_causal_experiment(
   ntrain = train_size,
   ntest = 100000,
   feat_distribution = "normal",
@@ -17,7 +17,7 @@ simulated_experimenta <- simulate_causal_experiment(
 )
 
 # Simulation B (recreating SI Simulation 2)
-# simulated_experiment2 <- simulate_causal_experiment(
+# simB <- simulate_causal_experiment(
 #   ntrain = train_size,
 #   ntest = 100000,
 #   feat_distribution = "normal",
@@ -28,7 +28,7 @@ simulated_experimenta <- simulate_causal_experiment(
 # )
 
 # Simulation C (recreating SI Simulation 3)
-simulated_experiment3 <- simulate_causal_experiment(
+simC <- simulate_causal_experiment(
   ntrain = train_size,
   ntest = 100000,
   feat_distribution = "normal",
@@ -39,7 +39,7 @@ simulated_experiment3 <- simulate_causal_experiment(
 )
 
 # Simulation D (recreating SI Simulation 6)
-simulated_experiment3 <- simulate_causal_experiment(
+simD <- simulate_causal_experiment(
   ntrain = train_size,
   ntest = 100000,
   feat_distribution = "unif",
