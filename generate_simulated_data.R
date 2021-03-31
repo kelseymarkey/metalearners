@@ -2,7 +2,11 @@
 # Simulations A, B, C, and D recreate synthetic datasets from Kunzel et al
 
 
+
 train_size <- 300000
+set.seed()
+
+
 
 
 # Simulation A (recreating SI Simulation 1)
@@ -51,3 +55,11 @@ simD <- simulate_causal_experiment(
   mu0='simD',
   tau='no'
 )
+
+
+## Turning returned values form simulate_causal_experiment into dataframe
+## Code from LHD
+# feature_train <- simulated_experiment1$feat_tr
+# w_train <- simulated_experiment1$W_tr
+# yobs_train <-simulated_experiment1$Yobs_tr
+# simulated_experiment1_df <-cbind(feature_train, w_train, yobs_train)
