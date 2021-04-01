@@ -1,65 +1,105 @@
 # Generate data for specific simulations
 # Simulations A, B, C, and D recreate synthetic datasets from Kunzel et al
 
+# Valid simulations ready to be run
+working_sims <- c('A', 'C', 'D')
 
+# Get arguments from command line
+library("argparse")
+parser <- ArgumentParser(description='Generate synthetic data')
+parser$add_argument('--sim', type="character",
+                    help=paste("Which simulation to run. Must be one of: (",
+                               paste(working_sims, collapse=', '), ")", sep=''))
+parser$add_argument('--samp', type="integer",
+                    help="Which sample number this should be saved as. Will also be used as random seed")
+parser$add_argument('--n_train', type="integer", default=300000,
+                    help="Number of items in the training set")
+parser$add_argument('--n_test', type="integer", default=100000,
+                    help="Number of items in the test set")
 
-train_size <- 300000
-set.seed()
+args <- parser$parse_args()
 
+# Set location
+library(here)
 
+# Load simulation functions
+source("causal_experiment_simulator.R")
 
+# Set random seed
+set.seed(args$seed)
 
-# Simulation A (recreating SI Simulation 1)
-# alpha = default of 0.1 ?
-simA <- simulate_causal_experiment(
-  ntrain = train_size,
-  ntest = 100000,
-  feat_distribution = "normal",
-  dim = 20,
-  pscore='rct01',
-  mu0='simA',
-  tau='simA'
-)
+# Size of train and test
+n_train <- args$n_train
+n_test <- args$n_test
 
-# Simulation B (recreating SI Simulation 2)
-# alpha = default of 0.1 ?
-# simB <- simulate_causal_experiment(
-#   ntrain = train_size,
-#   ntest = 100000,
-#   feat_distribution = "normal",
-#   dim = 20,
-#   pscore='rct5',
-#   mu0='simB',
-#   tau= ???
-# )
+if(args$sim=='A'){
+  # Simulation A (recreating SI Simulation 1)
+  # alpha = default of 0.1 ?
+  sim <- simulate_causal_experiment(
+              ntrain = n_train,
+              ntest = n_test,
+              feat_distribution = "normal",
+              dim = 20,
+              pscore='rct01',
+              mu0='simA',
+              tau='simA'
+  )
+} else if(args$sim=='B'){
+  # Simulation B (recreating SI Simulation 2)
+  # alpha = default of 0.1 ?
+  # sim <- simulate_causal_experiment(
+            #   ntrain = n_train,
+            #   ntest = n_test,
+            #   feat_distribution = "normal",
+            #   dim = 20,
+            #   pscore='rct5',
+            #   mu0='simB',
+            #   tau= ???
+  # )
+  stop('Simulation B not yet completed.')
+} else if(args$sim=='C'){
+  # Simulation C (recreating SI Simulation 3)
+  # alpha = default of 0.1 ?
+  sim <- simulate_causal_experiment(
+              ntrain = n_train,
+              ntest = n_test,
+              feat_distribution = "normal",
+              dim = 20,
+              pscore='rct5',
+              mu0='simC',
+              tau='simC'
+  )
+} else if(args$sim=='D'){
+  # Simulation D (recreating SI Simulation 6)
+  sim <- simulate_causal_experiment(
+              ntrain = n_train,
+              ntest = n_test,
+              feat_distribution = "unif",
+              dim = 20,
+              pscore='osSparse1Beta',
+              mu0='simD',
+              tau='no'
+  )
+} else {
+  stop(paste("Invalid simulation name. --sim must be one of: (",
+             paste(working_sims, collapse=', '), ")", sep=''))
+}
 
-# Simulation C (recreating SI Simulation 3)
-# alpha = default of 0.1 ?
-simC <- simulate_causal_experiment(
-  ntrain = train_size,
-  ntest = 100000,
-  feat_distribution = "normal",
-  dim = 20,
-  pscore='rct5',
-  mu0='simC',
-  tau='simC'
-)
+# Save train and test to dataframes
+sim_train <-cbind(sim$feat_tr,
+                   treatment = sim$W_tr,
+                   Y = sim$Yobs_tr,
+                   tau = sim$tau_tr)
 
-# Simulation D (recreating SI Simulation 6)
-simD <- simulate_causal_experiment(
-  ntrain = train_size,
-  ntest = 100000,
-  feat_distribution = "unif",
-  dim = 20,
-  pscore='osSparse1Beta',
-  mu0='simD',
-  tau='no'
-)
+sim_test <-cbind(sim$feat_te,
+                  treatment = sim$W_te,
+                  Y = sim$Yobs_te,
+                  tau = sim$tau_te)
 
-
-## Turning returned values form simulate_causal_experiment into dataframe
-## Code from LHD
-# feature_train <- simulated_experiment1$feat_tr
-# w_train <- simulated_experiment1$W_tr
-# yobs_train <-simulated_experiment1$Yobs_tr
-# simulated_experiment1_df <-cbind(feature_train, w_train, yobs_train)
+# save train and test dataframes to CSV
+write.csv(sim_train, file = here('data', paste('sim', args$sim, sep=''),
+                                 paste('samp', args$samp, 
+                                       '_train.csv', sep='')))
+write.csv(sim_test, file = here('data', paste('sim', args$sim, sep=''),
+                                  paste('samp', args$samp, 
+                                        '_test.csv', sep='')))
