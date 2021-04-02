@@ -49,7 +49,7 @@ class t_learner:
     def predict(self, X):
         y1_preds = self.mu1_base.predict(X)
         y0_preds = self.mu0_base.predict(X)
-        tau_preds = y1_preds = y0_preds
+        tau_preds = y1_preds - y0_preds
         return tau_preds.flatten()
 
 # intialize base learner
