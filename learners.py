@@ -169,14 +169,19 @@ class x_learner:
         self.mu0_base.fit(X[W==0], y[W==0])
         self.mu1_base.fit(X[W==1], y[W==1])
     
-    def predict_impute(self, X, W, y)
+    def predict_impute(self, X, W, y):
         #impute y0 for treated group using mu0
-        y0_treat=self.mu0_base.predict(X[W==1])
+        y0_treat=self.mu0_base.predict(X[W==1]).flatten()
         #impute y1 for control group using mu1
-        y1_contol=self.mu1_base.predict(X[W==0])
-        tau = np.where(W==0, y1_control-y, y-y0_treat)
+        y1_control=self.mu1_base.predict(X[W==0]).flatten()
+
+        #### y1_control is all the same value, needs to be debugged! #####
+
+        #np.where not working due to incompatible broadcast dimensions. needs fixing
+        #tau = np.where(W==0, y1_control-y[W==0], y[W==1]-y0_treat)
+        #return tau
     
-    def fit_CATE(self, X, W, y0_treat, y1_control, y)
+    def fit_CATE(self, X, W, tau):
         self.tau0_base.fit(X[W==0], tau[W==0])
         self.tau1_base.fit(X[W==1], tau[W==1])
 
@@ -184,7 +189,7 @@ class x_learner:
         tau0_preds = self.tau0_base.predict(X)
         tau1_preds = self.tau1_base.predict(X)
         
-        tau_preds = g * tau0_pred + (1-g) * tau1_preds
+        tau_preds = g * tau0_preds + (1-g) * tau1_preds
         return tau_preds.flatten()
 
 # Set root directory
@@ -205,17 +210,20 @@ rf = RegressionForest(honest=True, random_state=42)
 # initialize metalearner
 #keeping g static for now as 0.5 
 g=np.full((1, len(X_test)), 0.5)
-X = x_learner(mu0_base=rf, mu1_base=rf, tau0_base=rf, tau1_base=rf, g=g)
+X_learner = x_learner(mu0_base=rf, mu1_base=rf, tau0_base=rf, tau1_base=rf, g=g)
 
 # Fit treatment and response estimators mu0 and  mu1
-X.fit_t(X=X_train, W=W_train, y=y_train)
+X_learner.fit_t(X=X_train, W=W_train, y=y_train)
 
 # Use mu1 to get imputed y for control group and mu0 to get imputed y for treatment group
-X.predict_impute(X=X_train, W=W_train, y=y_train)
-#tau_preds = S.predict(X=X_test)
+#tau=X_learner.predict_impute(X=X_train, W=W_train, y=y_train)
+
+#X_learner.fit_CATE(X=X_train, W=W_train, tau=tau)
+
+#tau_preds = X_learner.predict_CATE(X=X_test)
 
 # Calculate RMSE on test set
-rmse = np.sqrt(np.mean((tau_preds - test.tau)**2))
+#rmse = np.sqrt(np.mean((tau_preds - test.tau)**2))
 
-print('tau_preds.shape: ', len(tau_preds)) # should be (1000,)
-print('RMSE: ', rmse)
+#print('tau_preds.shape: ', len(tau_preds)) # should be (1000,)
+#print('RMSE: ', rmse)
