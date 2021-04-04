@@ -142,3 +142,80 @@ rmse = np.sqrt(np.mean((tau_preds - test.tau)**2))
 
 print('tau_preds.shape: ', len(tau_preds)) # should be (1000,)
 print('RMSE: ', rmse)
+
+class x_learner:
+
+    '''
+    From Rosenberg Slides:
+        µ^0(x) = E[Y (0) | X = x]
+        µ^1(x) = E[Y (1) | X = x]
+
+
+        τˆx (x) = g(x)t_0ˆ(x) − (1-g(x))t_1ˆ(x)
+
+    authors: Kelsey Markey and Lauren D'Arinzo, April 4 2021
+    '''
+
+    def __init__(self, mu0_base, mu1_base, tau0_base, tau1_base, g):
+        # Make copies of initialized base learner
+        self.mu0_base = clone(mu0_base, safe=False)
+        self.mu1_base = clone(mu1_base, safe=False)
+        self.tau0_base = clone(tau0_base, safe=False)
+        self.tau1_base = clone(tau1_base, safe=False)
+        self.g = g
+
+    def fit_t(self, X, W, y):
+        # Call fit method
+        self.mu0_base.fit(X[W==0], y[W==0])
+        self.mu1_base.fit(X[W==1], y[W==1])
+    
+    def predict_impute(self, X, W, y)
+        #impute y0 for treated group using mu0
+        y0_treat=self.mu0_base.predict(X[W==1])
+        #impute y1 for control group using mu1
+        y1_contol=self.mu1_base.predict(X[W==0])
+        tau = np.where(W==0, y1_control-y, y-y0_treat)
+    
+    def fit_CATE(self, X, W, y0_treat, y1_control, y)
+        self.tau0_base.fit(X[W==0], tau[W==0])
+        self.tau1_base.fit(X[W==1], tau[W==1])
+
+    def predict_CATE(self, X):
+        tau0_preds = self.tau0_base.predict(X)
+        tau1_preds = self.tau1_base.predict(X)
+        
+        tau_preds = g * tau0_pred + (1-g) * tau1_preds
+        return tau_preds.flatten()
+
+# Set root directory
+base_repo_dir = pathlib.Path(os.path.realpath(__file__)).parents[0]
+
+# Read in data
+train = pd.read_csv(base_repo_dir / 'data' / 'simA' / 'samp1_train.csv')
+test = pd.read_csv(base_repo_dir / 'data' / 'simA' / 'samp1_test.csv')
+X_train = train.drop(columns=['treatment', 'Y', 'tau'])
+y_train = train['Y']
+W_train = train['treatment']
+X_test = test.drop(columns=['treatment', 'Y', 'tau'])
+
+# intialize base learner
+# bart = SklearnModel() # takes too long
+rf = RegressionForest(honest=True, random_state=42)
+
+# initialize metalearner
+#keeping g static for now as 0.5 
+g=np.full((1, len(X_test)), 0.5)
+X = x_learner(mu0_base=rf, mu1_base=rf, tau0_base=rf, tau1_base=rf, g=g)
+
+# Fit treatment and response estimators mu0 and  mu1
+X.fit_t(X=X_train, W=W_train, y=y_train)
+
+# Use mu1 to get imputed y for control group and mu0 to get imputed y for treatment group
+X.predict_impute(X=X_train, W=W_train, y=y_train)
+#tau_preds = S.predict(X=X_test)
+
+# Calculate RMSE on test set
+rmse = np.sqrt(np.mean((tau_preds - test.tau)**2))
+
+print('tau_preds.shape: ', len(tau_preds)) # should be (1000,)
+print('RMSE: ', rmse)
