@@ -215,7 +215,7 @@ X_learner = x_learner(mu0_base=rf, mu1_base=rf, tau0_base=rf, tau1_base=rf, g=g)
 # Fit treatment and response estimators mu0 and  mu1
 X_learner.fit_t(X=X_train, W=W_train, y=y_train)
 
-# Use mu1 to get imputed y for control group and mu0 to get imputed y for treatment group
+## Use mu1 to get imputed y for control group and mu0 to get imputed y for treatment group
 #tau=X_learner.predict_impute(X=X_train, W=W_train, y=y_train)
 
 #X_learner.fit_CATE(X=X_train, W=W_train, tau=tau)
