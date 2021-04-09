@@ -6,6 +6,7 @@ from sklearn import clone
 import os, pathlib
 import numpy as np
 import pandas as pd
+from sklearn.linear_model import LogisticRegression
 
 '''
 Currently fitting RF-based T and S-Learner on 1st sample of sim A,
@@ -140,8 +141,8 @@ tau_preds = S.predict(X=X_test)
 # Calculate RMSE on test set
 rmse = np.sqrt(np.mean((tau_preds - test.tau)**2))
 
-print('tau_preds.shape: ', len(tau_preds)) # should be (1000,)
-print('RMSE: ', rmse)
+print('S Learner tau_preds.shape: ', len(tau_preds)) # should be (1000,)
+print('S Learner RMSE: ', rmse)
 
 class x_learner:
 
@@ -156,43 +157,60 @@ class x_learner:
     authors: Kelsey Markey and Lauren D'Arinzo, April 4 2021
     '''
 
-    def __init__(self, mu0_base, mu1_base, tau0_base, tau1_base, g):
+    def __init__(self, mu0_base, mu1_base, tau0_base, tau1_base):
         # Make copies of initialized base learner
         self.mu0_base = clone(mu0_base, safe=False)
         self.mu1_base = clone(mu1_base, safe=False)
         self.tau0_base = clone(tau0_base, safe=False)
         self.tau1_base = clone(tau1_base, safe=False)
-        self.g = g
 
-    def fit_t(self, X, W, y):
+    def fit(self, X, W, y, fit_g):
         # Call fit method
         self.mu0_base.fit(X[W==0], y[W==0])
         self.mu1_base.fit(X[W==1], y[W==1])
     
-    def predict_impute(self, X, W, y):
         #impute y0 for treated group using mu0
         y0_treat=self.mu0_base.predict(X[W==1]).flatten()
         #impute y1 for control group using mu1
         y1_control=self.mu1_base.predict(X[W==0]).flatten()
-        print("y1_control", y1_control)
-        print("y0_treat", y0_treat)
-        print("unique y1", np.unique(y1_control))
+        #print("y1_control", y1_control)
+        #print("y0_treat", y0_treat)
+        #print("unique y1", np.unique(y1_control))
         #### y1_control is all the same value, needs to be debugged! #####
        
         imputed_TE_control = y1_control - y[W==0] 
         imputed_TE_treatment = y[W==1] - y0_treat
 
-        return imputed_TE_control, imputed_TE_treatment
-    
-    def fit_CATE(self, X, W, imputed_TE_control, imputed_TE_treatment):
         self.tau0_base.fit(X[W==0], imputed_TE_control)
         self.tau1_base.fit(X[W==1], imputed_TE_treatment)
 
-    def predict_CATE(self, X):
+        if fit_g:
+            print('X Learner with g fitted')
+            self.g_fit = LogisticRegression(fit_intercept=True, max_iter=2000).fit(
+            X=X, y=W)
+        
+        else:
+            print('X Learner with true propensities')
+            self.g_fit = None
+
+
+    def predict(self, X, g):
+        #g will be none if fit_g = True
         tau0_preds = self.tau0_base.predict(X).flatten()
         tau1_preds = self.tau1_base.predict(X).flatten()
-        
-        tau_preds = (self.g.T * tau0_preds) + ((1-self.g).T*tau1_preds)
+        #idea: allow g to be either be a vector or function?
+        #if function: think about sklearn inputs (.predict) vs lamba functions (g(x))
+        #g_typ
+    
+        if self.g_fit == None:
+            tau_preds = (g.T * tau0_preds) + ((1-g).T*tau1_preds)
+        else:
+            g_preds = self.g_fit.predict_proba(X)[:, 1]
+            tau_preds = (g_preds.T * tau0_preds) + ((1-g_preds).T*tau1_preds)
+        #if g_type == 'Function':
+        #    g_preds = g(X)
+        #    tau_preds = (g_preds.T * tau0_preds) + ((1-g_preds).T*tau1_preds)
+
         #print("g transpose shape: ", self.g.T.shape)
         #print("tau0_preds shape: ", tau0_preds.shape)
         #print("tau1_preds shape: ", tau1_preds.shape)
@@ -216,23 +234,19 @@ rf = RegressionForest(honest=True, random_state=42)
 
 # initialize metalearner
 #keeping g static for now as 0.5 
-g=np.full((len(X_test)), 0.5)
 #print(g)
 #print(len(g))
-X_learner = x_learner(mu0_base=rf, mu1_base=rf, tau0_base=rf, tau1_base=rf, g=g)
-
+X_learner = x_learner(mu0_base=rf, mu1_base=rf, tau0_base=rf, tau1_base=rf)
 # Fit treatment and response estimators mu0 and  mu1
-X_learner.fit_t(X=X_train, W=W_train, y=y_train)
-
-## Use mu1 to get imputed y for control group and mu0 to get imputed y for treatment group
-imputed_TE_control, imputed_TE_treatment=X_learner.predict_impute(X=X_train, W=W_train, y=y_train)
-
-X_learner.fit_CATE(X=X_train, W=W_train, imputed_TE_control=imputed_TE_control, imputed_TE_treatment=imputed_TE_treatment)
-
-tau_preds = X_learner.predict_CATE(X=X_test)
+X_learner.fit(X=X_train, W=W_train, y=y_train, fit_g=False)
+g=np.full((len(X_test)), 0.01)
+#g = LogisticRegression(fit_intercept=True, max_iter=2000).fit(
+#        X=X_train, y=W_train)
+#read more about max_iter param, issues with convergence when left to default
+tau_preds = X_learner.predict(X=X_test, g=g)
 
 # Calculate RMSE on test set
 rmse = np.sqrt(np.mean((tau_preds - test.tau)**2))
 
-print('tau_preds.shape: ', len(tau_preds)) # should be (1000,)
-print('RMSE: ', rmse)
+print('X Learner tau_preds.shape: ', len(tau_preds)) # should be (1000,)
+print('X Learner RMSE: ', rmse)
