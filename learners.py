@@ -79,8 +79,8 @@ tau_preds = T.predict(X=X_test)
 # Calculate RMSE on test set
 rmse = np.sqrt(np.mean((tau_preds - test.tau)**2))
 
-print('tau_preds.shape: ', len(tau_preds)) # should be (1000,)
-print('RMSE: ', rmse)
+print('T Learner tau_preds.shape: ', len(tau_preds)) # should be (1000,)
+print('T Learner RMSE: ', rmse)
 
 
 class s_learner:
