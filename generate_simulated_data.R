@@ -2,7 +2,7 @@
 # Simulations A, B, C, and D recreate synthetic datasets from Kunzel et al
 
 # Valid simulations ready to be run
-working_sims <- c('A', 'C', 'D')
+working_sims <- c('A', 'B', 'C', 'D')
 
 # Get arguments from command line
 library("argparse")
@@ -47,16 +47,15 @@ if(args$sim=='A'){
 } else if(args$sim=='B'){
   # Simulation B (recreating SI Simulation 2)
   # alpha = default of 0.1 ?
-  # sim <- simulate_causal_experiment(
-            #   ntrain = n_train,
-            #   ntest = n_test,
-            #   feat_distribution = "normal",
-            #   dim = 20,
-            #   pscore='rct5',
-            #   mu0='simB',
-            #   tau= ???
-  # )
-  stop('Simulation B not yet completed.')
+  sim <- simulate_causal_experiment(
+    ntrain = n_train,
+    ntest = n_test,
+    feat_distribution = "normal",
+    dim = 20,
+    pscore='rct5',
+    mu0='simB',
+    tau='simB'
+  )
 } else if(args$sim=='C'){
   # Simulation C (recreating SI Simulation 3)
   # alpha = default of 0.1 ?

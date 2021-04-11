@@ -301,8 +301,21 @@ simulate_causal_experiment <- function(ntrain = nrow(given_features),
   }
   
   m_c_truth <- mu0.simulate_causal_experiment[[mu0]]
-  m_t_truth <- function(feat)
-    m_c_truth(feat) + tau.simulate_causal_experiment[[tau]](feat)
+  
+  if (tau == 'simB') {
+    # create mu1/m_t_truth directly instead of doing it like
+    # mu0/m_m_c_truth + tau = mu0 + mu1 - mu0 = mu1 as below
+    m_t_truth <- function(feat) {
+      set.seed(42)
+      d <- ncol(feat)
+      beta1 = runif(d, 1, 30)
+      as.matrix(feat) %*% beta1
+    }
+  } else {
+    m_t_truth <- function(feat)
+      m_c_truth(feat) + tau.simulate_causal_experiment[[tau]](feat)
+  }
+  
   propscore <- pscores.simulate_causal_experiment[[pscore]]
   
   return(
@@ -473,7 +486,10 @@ tau.simulate_causal_experiment <- list(
   simA = function(feat) {
     ifelse(feat$x2 > 0.1, 8, 0)
   },
-  # simB =
+  
+  # When tau = simB then this tau logic is not actually used
+  simB = function(feat) {0},
+  
   simC = function(feat) {
     4 / ((1 + exp(-12 * (feat$x1 - 0.5))) *
             (1 + exp(-12 * (feat$x2 - 0.5)))

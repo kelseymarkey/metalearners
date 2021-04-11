@@ -10,7 +10,7 @@ n_samples=30
 
 
 # Array of error correlations to test
-SIMS=('A' 'C' 'D')
+SIMS=('A' 'B' 'C' 'D')
 
 
 for sim in ${SIMS[@]}
