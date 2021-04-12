@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # This script generates a small amount of data:
-# 30 samples of each simulation (A, C, and D) 
+# 30 samples of each simulation (A, B, C, and D) 
 # Each has 3000 rows in train, 1000 in test
 
 n_train=3000
