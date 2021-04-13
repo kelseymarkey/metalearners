@@ -306,7 +306,6 @@ simulate_causal_experiment <- function(ntrain = nrow(given_features),
     # create mu1/m_t_truth directly instead of doing it like
     # mu0/m_m_c_truth + tau = mu0 + mu1 - mu0 = mu1 as below
     m_t_truth <- function(feat) {
-      set.seed(42)
       d <- ncol(feat)
       beta1 = runif(d, 1, 30)
       as.matrix(feat) %*% beta1
