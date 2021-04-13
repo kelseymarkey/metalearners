@@ -63,8 +63,8 @@ T = t_learner(mu0_base=rf, mu1_base=rf)
 base_repo_dir = pathlib.Path(os.path.realpath(__file__)).parents[0]
 
 # Read in data
-train = pd.read_csv(base_repo_dir / 'data' / 'simA' / 'samp1_train.csv')
-test = pd.read_csv(base_repo_dir / 'data' / 'simA' / 'samp1_test.csv')
+train = pd.read_parquet(base_repo_dir / 'data' / 'simA' / 'samp1_train.parquet')
+test = pd.read_parquet(base_repo_dir / 'data' / 'simA' / 'samp1_test.parquet')
 X_train = train.drop(columns=['treatment', 'Y', 'tau'])
 y_train = train['Y']
 W_train = train['treatment']
@@ -124,8 +124,8 @@ S = s_learner(mu_base=rf)
 base_repo_dir = pathlib.Path(os.path.realpath(__file__)).parents[0]
 
 # Read in data
-train = pd.read_csv(base_repo_dir / 'data' / 'simA' / 'samp1_train.csv')
-test = pd.read_csv(base_repo_dir / 'data' / 'simA' / 'samp1_test.csv')
+train = pd.read_parquet(base_repo_dir / 'data' / 'simA' / 'samp1_train.parquet')
+test = pd.read_parquet(base_repo_dir / 'data' / 'simA' / 'samp1_test.parquet')
 X_train = train.drop(columns=['treatment', 'Y', 'tau'])
 y_train = train['Y']
 W_train = train['treatment']
@@ -221,8 +221,8 @@ class x_learner:
 base_repo_dir = pathlib.Path(os.path.realpath(__file__)).parents[0]
 
 # Read in data
-train = pd.read_csv(base_repo_dir / 'data' / 'simA' / 'samp1_train.csv')
-test = pd.read_csv(base_repo_dir / 'data' / 'simA' / 'samp1_test.csv')
+train = pd.read_parquet(base_repo_dir / 'data' / 'simA' / 'samp1_train.parquet')
+test = pd.read_parquet(base_repo_dir / 'data' / 'simA' / 'samp1_test.parquet')
 X_train = train.drop(columns=['treatment', 'Y', 'tau'])
 y_train = train['Y']
 W_train = train['treatment']

@@ -1,5 +1,6 @@
 # Generate data for specific simulations
 # Simulations A, B, C, and D recreate synthetic datasets from Kunzel et al
+library("arrow", warn.conflicts = FALSE)
 
 # Valid simulations ready to be run
 working_sims <- c('A', 'B', 'C', 'D')
@@ -95,10 +96,13 @@ sim_test <-cbind(sim$feat_te,
                   Y = sim$Yobs_te,
                   tau = sim$tau_te)
 
-# save train and test dataframes to CSV
-write.csv(sim_train, file = here('data', paste('sim', args$sim, sep=''),
-                                 paste('samp', args$samp, 
-                                       '_train.csv', sep='')))
-write.csv(sim_test, file = here('data', paste('sim', args$sim, sep=''),
-                                  paste('samp', args$samp, 
-                                        '_test.csv', sep='')))
+# save train and test dataframes to parquet
+file_train = here('data', paste('sim', args$sim, sep=''),
+                  paste('samp', args$samp, '_train.parquet', sep='')
+                  )
+write_parquet(sim_train, file_train)
+
+file_test = here('data', paste('sim', args$sim, sep=''),
+            paste('samp', args$samp, '_test.parquet', sep='')
+            )
+write_parquet(sim_test, file_test)
