@@ -26,7 +26,7 @@ library(here)
 source("causal_experiment_simulator.R")
 
 # Set random seed
-set.seed(args$seed)
+set.seed(args$samp)
 
 # Size of train and test
 n_train <- args$n_train
