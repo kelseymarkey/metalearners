@@ -2,7 +2,7 @@
 # Simulations A, B, C, and D recreate synthetic datasets from Kunzel et al
 
 # Valid simulations ready to be run
-working_sims <- c('A', 'B', 'C', 'D')
+working_sims <- c('A', 'B', 'C', 'D', 'E')
 
 # Get arguments from command line
 library("argparse")
@@ -82,6 +82,42 @@ if(args$sim=='A'){
               pscore='osSparse1Beta',
               mu0='simD',
               tau='no'
+  )
+} else if(args$sim=='E'){
+  # Simulation E
+  # Measured confounding with TE
+  # NEED TO CHOOSE WHICH CATE:
+  #     simple / complex linear / complex non-linear
+  sim <- simulate_causal_experiment(
+    ntrain = n_train,
+    ntest = n_test,
+    feat_distribution = "unif",
+    dim = 20,
+    pscore='osSparse1Beta',
+    mu0='simD',
+    tau='simA' # choosing simple CATE for now
+  )
+} else if(args$sim=='F'){
+  # Simulation F
+  # Unmeasured confounding with TE
+  # tau <-- Beta --> pscore
+  # How to incorporate Beta? Lessons from Sim B?
+  # NEED TO CHOOSE RELATIONSHIP BTW PSCORE & TAU
+  # NEED TO CHOOSE WHICH CATE:
+  #     simple / complex linear / complex non-linear
+  
+  # NOT YET COMPLETE
+  stop(paste("Invalid simulation name. --sim must be one of: (",
+             paste(working_sims, collapse=', '), ")", sep=''))
+
+  sim <- simulate_causal_experiment(
+    ntrain = n_train,
+    ntest = n_test,
+    feat_distribution = "unif",
+    dim = 20,
+    pscore='osSparse1Beta',
+    mu0='simD',
+    tau='simA' # choosing simple CATE for now
   )
 } else {
   stop(paste("Invalid simulation name. --sim must be one of: (",
