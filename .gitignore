@@ -133,3 +133,6 @@ dmypy.json
 
 # Data directory
 data/**
+
+# Desktop Services Store
+.DS_Store
