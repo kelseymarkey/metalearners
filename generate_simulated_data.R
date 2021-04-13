@@ -34,6 +34,7 @@ n_test <- args$n_test
 
 if(args$sim=='A'){
   # Simulation A (recreating SI Simulation 1)
+  # Unbalanced case with simple CATE
   # alpha = default of 0.1 ?
   sim <- simulate_causal_experiment(
               ntrain = n_train,
@@ -46,6 +47,7 @@ if(args$sim=='A'){
   )
 } else if(args$sim=='B'){
   # Simulation B (recreating SI Simulation 2)
+  # Balanced case with complex linear CATE
   # alpha = default of 0.1 ?
   sim <- simulate_causal_experiment(
     ntrain = n_train,
@@ -58,6 +60,7 @@ if(args$sim=='A'){
   )
 } else if(args$sim=='C'){
   # Simulation C (recreating SI Simulation 3)
+  # Balanced case with complex non-linear CATE
   # alpha = default of 0.1 ?
   sim <- simulate_causal_experiment(
               ntrain = n_train,
@@ -70,6 +73,7 @@ if(args$sim=='A'){
   )
 } else if(args$sim=='D'){
   # Simulation D (recreating SI Simulation 6)
+  # Measured confounding with no TE
   sim <- simulate_causal_experiment(
               ntrain = n_train,
               ntest = n_test,
