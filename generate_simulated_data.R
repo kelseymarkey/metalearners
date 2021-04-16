@@ -3,7 +3,7 @@
 library("arrow", warn.conflicts = FALSE)
 
 # Valid simulations ready to be run
-working_sims <- c('A', 'B', 'C', 'D', 'E')
+working_sims <- c('A', 'B', 'C', 'D', 'E', 'F')
 
 # Get arguments from command line
 library("argparse")
@@ -19,6 +19,9 @@ parser$add_argument('--n_test', type="integer", default=100000,
                     help="Number of items in the test set")
 
 args <- parser$parse_args()
+
+# Uncomment below to test in RStudio
+#args <- data.frame(sim='D', samp=1, n_train=3000, n_test=1000)
 
 # Set location
 library(here)
@@ -102,14 +105,8 @@ if(args$sim=='A'){
   # Simulation F
   # Unmeasured confounding with TE
   # tau <-- Beta --> pscore
-  # How to incorporate Beta? Lessons from Sim B?
-  # NEED TO CHOOSE RELATIONSHIP BTW PSCORE & TAU
-  # NEED TO CHOOSE WHICH CATE:
-  #     simple / complex linear / complex non-linear
-  
-  # NOT YET COMPLETE
-  stop(paste("Invalid simulation name. --sim must be one of: (",
-             paste(working_sims, collapse=', '), ")", sep=''))
+  # tau = Beta added onto simple CATE 
+  #       (adding confounding to tau in simE)
 
   sim <- simulate_causal_experiment(
     ntrain = n_train,
@@ -120,6 +117,15 @@ if(args$sim=='A'){
     mu0='simD',
     tau='simA' # choosing simple CATE for now
   )
+  
+  # Get beta
+  beta_tr <- (4*sim$Pscore_tr)-1
+  beta_te <- (4*sim$Pscore_te)-1
+  
+  # Augment tau with beta
+  sim$tau_tr <- sim$tau_tr + beta_tr
+  sim$tau_te <- sim$tau_te + beta_te
+  
 } else {
   stop(paste("Invalid simulation name. --sim must be one of: (",
              paste(working_sims, collapse=', '), ")", sep=''))
@@ -129,11 +135,13 @@ if(args$sim=='A'){
 sim_train <-cbind(sim$feat_tr,
                    treatment = sim$W_tr,
                    Y = sim$Yobs_tr,
+                   pscore = sim$Pscore_tr,
                    tau = sim$tau_tr)
 
 sim_test <-cbind(sim$feat_te,
                   treatment = sim$W_te,
                   Y = sim$Yobs_te,
+                  pscore = sim$Pscore_te,
                   tau = sim$tau_te)
 
 # save train and test dataframes to parquet
