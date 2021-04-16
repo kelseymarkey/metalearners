@@ -219,8 +219,8 @@ simulate_causal_experiment <- function(ntrain = nrow(given_features),
         nn <- nrow(feat)
         return(propscore(feat))
       }
-      getW <- function(Pscore) {
-        nn <- length(Pscore)
+      getW <- function(Pscore, feat) {
+        nn <- nrow(feat)
         return(rbinom(nn, 1, Pscore))
       }
       getYobs <- function(feat, W) {
@@ -252,7 +252,7 @@ simulate_causal_experiment <- function(ntrain = nrow(given_features),
       }))
       
       Pscore_tr <- getPscore(feat_tr_numeric)
-      W_tr <- getW(Pscore_tr)
+      W_tr <- getW(Pscore_tr, feat_tr_numeric)
       Yobs_tr <- getYobs(feat_tr_numeric, W_tr)
       if (!is.null(trainseed)) {
         .Random.seed <- current_seed  # sets back the current random stage
@@ -270,7 +270,7 @@ simulate_causal_experiment <- function(ntrain = nrow(given_features),
         }
       }))
       Pscore_te <- getPscore(feat_te_numeric)
-      W_te <- getW(Pscore_te)
+      W_te <- getW(Pscore_te, feat_te_numeric)
       Yobs_te <- getYobs(feat_te_numeric, W_te)
       if (!is.null(testseed)) {
         .Random.seed <- current_seed  # sets back the current random stage

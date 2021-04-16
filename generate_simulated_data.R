@@ -21,7 +21,7 @@ parser$add_argument('--n_test', type="integer", default=100000,
 args <- parser$parse_args()
 
 # Uncomment below to test in RStudio
-#args <- data.frame(sim='D', samp=1, n_train=3000, n_test=1000)
+# args <- data.frame(sim='A', samp=1, n_train=3000, n_test=1000)
 
 # Set location
 library(here)
