@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from bartpy.sklearnmodel import SklearnModel
+# from bartpy.sklearnmodel import SklearnModel
 from econml.grf import RegressionForest
 from sklearn import clone
 import os, pathlib
