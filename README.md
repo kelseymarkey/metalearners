@@ -10,4 +10,4 @@ To generate synethetic data, run the following from the command line:
 ```bash
 run_sims.sh # within repo root directory
 ```
-This will generate 30 samples of each simulation (A, B, C,  D, E, and F). Each sample will contain 30,000 rows in train, and 10,000 rows in test. Each train and test frame will be saved as a Parquet file, and any necessary directories will be created.
+This will generate 30 samples of each simulation (A, B, C, D, E, and F) for each training set size in `[5000, 10000, 20000, 100000, 300000]`. Each sample will also be accompanied by a 100,000 row test dataset. Each train and test frame will be saved as a Parquet file, and any necessary directories will be created.
