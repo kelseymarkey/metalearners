@@ -1,38 +1,43 @@
 #!/bin/bash
 
-# This script generates a medium amount of data:
+# This script generates a training and test dataset for each
+# training set size in n_train. Test set sizes are all 100,000 rows.
 # 30 samples of each simulation (A, B, C, D, E, and F) 
-# Each has 30,000 rows in train, 10,000 in test
 
-n_train=30000
-n_test=10000
+n_train=(5000 10000 20000 100000 300000)
+n_test=100000
 n_samples=30
 
 
-# Array of error correlations to test
+# Array of simulations to generate
 SIMS=('A' 'B' 'C' 'D' 'E' 'F')
 
 
-for sim in ${SIMS[@]}
+for train_size in ${n_train[@]}
 do
-    echo "BEGIN SIMULATION $sim"
+	# Create necessary directory
+	mkdir -p "data/$train_size/"
 
-    # Create necessary directory
-    mkdir -p "data/sim$sim/"
+	for sim in ${SIMS[@]}
+	do
+		echo "BEGIN SIMULATION $sim"
 
-    # Initialize counter
-    i=1
-    while [ $i -le $n_samples ]
-    do
-    
-        # Generate data
-        Rscript generate_simulated_data.R --sim $sim --samp $i \
-        --n_train $n_train --n_test $n_test 
+	    # Create necessary directory
+	    mkdir -p "data/$train_size/sim$sim"
 
-        echo "     Finished generating $i/$n_samples samples of sim $sim "
+	    # Initialize counter
+	    i=1
+	    while [ $i -le $n_samples ]
+	    do
+	        # Generate data
+	        Rscript generate_simulated_data.R --sim $sim --samp $i \
+	        --n_train $train_size --n_test $n_test
 
-        # Increase counter
-        i=$(( $i + 1 ))
+	        echo "     Finished generating $i/$n_samples samples of sim $sim "
 
-    done
+	        # Increase counter
+	        i=$(( $i + 1 ))
+
+	    done
+	done
 done
