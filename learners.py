@@ -242,7 +242,7 @@ def main():
                 samp_train_name = 'samp' + str(i+1) + '_train.parquet'
                 samp_test_name = 'samp' + str(i+1) + '_test.parquet'
                 train = pd.read_parquet(base_repo_dir / 'data' / str(train_size) / sim / samp_train_name)
-                test = pd.read_parquet(base_repo_dir / 'data/' / str(train_size) / sim / samp_test_name)
+                test = pd.read_parquet(base_repo_dir / 'data' / str(train_size) / sim / samp_test_name)
                 
                 for metalearner in meta_base_dict.keys():
                     

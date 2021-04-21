@@ -134,8 +134,5 @@ dmypy.json
 # Data directory
 data/**
 
-# Configuration directory
-configurations/**
-
 # Desktop Services Store
 .DS_Store
