@@ -227,18 +227,26 @@ def main():
     # read in base learner model types for each metalearner
     meta_base_dict = json.load(open(base_repo_dir / 'configurations' / 'base_learners' / 'base_learners.json'))
     
+    #initialize temp list where results will be stored and column names for results df
+    rows=[]
+
     for train_size in [5000, 10000]: 
         # Final run with [5000, 10000, 20000, 100000, 300000]
         print('---------------------------')
         print('Training set size:', train_size)
         
         for sim in ['simA', 'simB', 'simC', 'simD', 'simE', 'simF']:
-            print('---------------------------')
-            print('Starting '+ sim)
-            
+            #print('---------------------------')
+            print('     Starting '+ sim)
+
+            T_RF = []
+            S_RF = []
+            X_RF_PTrue = []
+            X_RF_PPred = []
+
             for i in range(3):
                 # Final run with range(30)
-                print('')
+                #print('')
                 samp_train_name = 'samp' + str(i+1) + '_train.parquet'
                 samp_test_name = 'samp' + str(i+1) + '_test.parquet'
                 train = pd.read_parquet(base_repo_dir / 'data' / str(train_size) / sim / samp_train_name)
@@ -248,7 +256,7 @@ def main():
                     
                     if metalearner == 'T':
                         for base_learner_dict in meta_base_dict[metalearner]:
-                            print(sim+'/' +'sample_'+str(i+1)+'/'+metalearner+'-learner:')
+                            #print(sim+'/' +'sample_'+str(i+1)+'/'+metalearner+'-learner:')
                             if base_learner_dict['mu_0'] == 'rf':
                                 mu0_hyperparams = rf_params[metalearner]['mu_0'][sim]
                                 # uncomment out all of these lines once hyperparameter jsons updated from tuning
@@ -261,11 +269,12 @@ def main():
 
                             # TODO: add logic for if base_learner_dict[mu_0]/[mu_1] is other base learner type
                             mse = fit_get_mse_t(train, test, mu0_base, mu1_base)
-                            print('     MSE=', mse)
+                            T_RF.append(mse)
+                            #print('     MSE=', mse)
 
                     if metalearner == 'S':
                         for base_learner_dict in meta_base_dict[metalearner]:
-                            print(sim+'/' +'sample_'+str(i+1)+'/'+ metalearner+'-learner:')
+                            #print(sim+'/' +'sample_'+str(i+1)+'/'+ metalearner+'-learner:')
                             if base_learner_dict['mu'] == 'rf':
                                 mu_hyperparams = rf_params[metalearner]['mu'][sim]
                                 # uncomment out all of these lines once hyperparameter jsons updated from tuning
@@ -274,11 +283,12 @@ def main():
                             
                             # TODO: add logic for if base_learner_dict[mu] is other base learner type
                             mse = fit_get_mse_s(train, test, mu_base)
-                            print('     MSE=', mse)
+                            S_RF.append(mse)
+                            #print('     MSE=', mse)
                             
                     if metalearner == 'X':
                         for base_learner_dict in meta_base_dict[metalearner]:
-                            print(sim+'/' +'sample_'+str(i+1)+'/'+ metalearner+'-learner:')
+                            #print(sim+'/' +'sample_'+str(i+1)+'/'+ metalearner+'-learner:')
                             if base_learner_dict['mu_0'] == 'rf':
                                 mu0_hyperparams = rf_params[metalearner]['mu_0'][sim]
                                 # uncomment out all of these lines once hyperparameter jsons updated from tuning
@@ -299,9 +309,18 @@ def main():
                             
                             # TODO: add logic for if other base learner types
                             mse_true, mse_pred = fit_get_mse_x(train, test, mu0_base, mu1_base, tau0_base, tau1_base)
-                            print('     MSE (true pscore)=', mse_true)
-                            print('     MSE (estimated pscore)=', mse_pred)                                
-
+                            X_RF_PTrue.append(mse_true)
+                            X_RF_PPred.append(mse_pred)
+                            #print('     MSE (true pscore)=', mse_true)
+                            #print('     MSE (estimated pscore)=', mse_pred)   
+            rows.append([sim, train_size, np.mean(T_RF), np.mean(S_RF), np.mean(X_RF_PTrue), np.mean(X_RF_PPred)])
+            #print(rows)                             
+    columns=['simulation', 'n', 'T_RF', 'S_RF', 'X_RF_PTrue', 'X_RF_PPred']
+    results = pd.DataFrame(rows, columns=columns)
+    results.sort_values(by=['simulation', 'n'], inplace=True)
+    print('---------------------------')
+    print('Results:\n', results)
+    results.to_csv('results.csv')
     return
 
 if __name__ == "__main__":
