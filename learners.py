@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import argparse
 from econml.grf import RegressionForest
 from sklearn import clone
 import os, pathlib
@@ -9,9 +10,9 @@ import json
 from sklearn.linear_model import LogisticRegression
 
 '''
-Currently fitting RF-based T, S, and X-Learner on first 3 samples of each sim,
-and predicting CATE for each row of test set.
-Does not save predictions or fit. Only prints RMSE.
+Small run usage example: python learners.py --samples 3 --training_sizes 5000 10000
+Currently fitting RF-based T, S, and X-Learner and predicting CATE for each row of test set.
+Does not save predictions or fit. Only prints and saves MSE.
 '''
 
 
@@ -211,7 +212,7 @@ def fit_get_mse_x(train, test, mu0_base, mu1_base, tau0_base, tau1_base):
     return mse_true, mse_pred
 
 
-def main():
+def main(samples=30, training_sizes=[5000, 10000, 20000, 100000, 300000]):
     
     # Set root directory
     base_repo_dir = pathlib.Path(os.path.realpath(__file__)).parents[0]
@@ -230,8 +231,7 @@ def main():
     #initialize temp list where results will be stored and column names for results df
     rows=[]
 
-    for train_size in [5000, 10000]: 
-        # Final run with [5000, 10000, 20000, 100000, 300000]
+    for train_size in training_sizes:
         print('---------------------------')
         print('Training set size:', train_size)
         
@@ -244,8 +244,7 @@ def main():
             X_RF_PTrue = []
             X_RF_PPred = []
 
-            for i in range(3):
-                # Final run with range(30)
+            for i in range(samples):
                 #print('')
                 samp_train_name = 'samp' + str(i+1) + '_train.parquet'
                 samp_test_name = 'samp' + str(i+1) + '_test.parquet'
@@ -325,5 +324,13 @@ def main():
 
 if __name__ == "__main__":
 
+    # Command line arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--samples", type=int, default=30,
+                        help='Number of samples to read in from data directory')
+    parser.add_argument("--training_sizes", nargs='+', type=int, default=[5000, 10000, 20000, 100000, 300000],
+                        help='Training set sizes to read in from data directory')
+    args = parser.parse_args()
+
     # Call main routine
-    main()
+    main(samples=args.samples, training_sizes=args.training_sizes)
