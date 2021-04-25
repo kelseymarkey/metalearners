@@ -144,7 +144,8 @@ def fit_get_mse_t(train, test, mu0_base, mu1_base):
 
     # Calculate MSE on test set
     mse = np.mean((tau_preds - test.tau)**2)
-    return mse
+
+    return (tau_preds, mse)
 
 
 def fit_get_mse_s(train, test, mu_base):
@@ -171,7 +172,8 @@ def fit_get_mse_s(train, test, mu_base):
 
     # Calculate MSE on test set
     mse = np.mean((tau_preds - test.tau)**2)
-    return mse
+
+    return (tau_preds, mse)
 
 
 def fit_get_mse_x(train, test, mu0_base, mu1_base, tau0_base, tau1_base):
@@ -209,10 +211,18 @@ def fit_get_mse_x(train, test, mu0_base, mu1_base, tau0_base, tau1_base):
     mse_true = np.mean((tau_preds_gtrue - test.tau)**2)
     mse_pred = np.mean((tau_preds_gpred - test.tau)**2)
     
-    return mse_true, mse_pred
+    return (tau_preds_gtrue, tau_preds_gpred, mse_true, mse_pred)
 
 
-def main(samples=30, training_sizes=[5000, 10000, 20000, 100000, 300000]):
+def calc_CI(tau_preds):
+
+    '''
+    Place holder for confidence interval calculations.
+    '''
+    pass
+
+
+def main(samples=30, training_sizes=[5000, 10000, 20000, 100000, 300000], CI=False):
     
     # Set root directory
     base_repo_dir = pathlib.Path(os.path.realpath(__file__)).parents[0]
@@ -267,9 +277,13 @@ def main(samples=30, training_sizes=[5000, 10000, 20000, 100000, 300000]):
                                 mu1_base = RegressionForest(honest=True, random_state=42)
 
                             # TODO: add logic for if base_learner_dict[mu_0]/[mu_1] is other base learner type
-                            mse = fit_get_mse_t(train, test, mu0_base, mu1_base)
+                            (tau_preds, mse) = fit_get_mse_t(train, test, mu0_base, mu1_base)
                             T_RF.append(mse)
                             #print('     MSE=', mse)
+
+                            if CI:
+                                calc_CI(tau_preds)
+
 
                     if metalearner == 'S':
                         for base_learner_dict in meta_base_dict[metalearner]:
@@ -281,9 +295,13 @@ def main(samples=30, training_sizes=[5000, 10000, 20000, 100000, 300000]):
                                 mu_base = RegressionForest(honest=True, random_state=42)
                             
                             # TODO: add logic for if base_learner_dict[mu] is other base learner type
-                            mse = fit_get_mse_s(train, test, mu_base)
+                            (tau_preds, mse) = fit_get_mse_s(train, test, mu_base)
                             S_RF.append(mse)
                             #print('     MSE=', mse)
+
+                            if CI:
+                                calc_CI(tau_preds)
+
                             
                     if metalearner == 'X':
                         for base_learner_dict in meta_base_dict[metalearner]:
@@ -307,11 +325,17 @@ def main(samples=30, training_sizes=[5000, 10000, 20000, 100000, 300000]):
                                 tau1_base = RegressionForest(honest=True, random_state=42)
                             
                             # TODO: add logic for if other base learner types
-                            mse_true, mse_pred = fit_get_mse_x(train, test, mu0_base, mu1_base, tau0_base, tau1_base)
+                            (tau_preds_gtrue, tau_preds_gpred, mse_true, mse_pred) = fit_get_mse_x(
+                                    train, test, mu0_base, mu1_base, tau0_base, tau1_base)
                             X_RF_PTrue.append(mse_true)
                             X_RF_PPred.append(mse_pred)
                             #print('     MSE (true pscore)=', mse_true)
-                            #print('     MSE (estimated pscore)=', mse_pred)   
+                            #print('     MSE (estimated pscore)=', mse_pred)
+
+                            if CI:
+                                # TODO: Decide if want to calculate CIs for both tau_preds with true g & predicted g
+                                calc_CI(tau_preds=tau_preds_gpred)
+
             rows.append([sim, train_size, np.mean(T_RF), np.mean(S_RF), np.mean(X_RF_PTrue), np.mean(X_RF_PPred)])
             #print(rows)                             
     columns=['simulation', 'n', 'T_RF', 'S_RF', 'X_RF_PTrue', 'X_RF_PPred']
@@ -330,7 +354,9 @@ if __name__ == "__main__":
                         help='Number of samples to read in from data directory')
     parser.add_argument("--training_sizes", nargs='+', type=int, default=[5000, 10000, 20000, 100000, 300000],
                         help='Training set sizes to read in from data directory')
+    parser.add_argument("--CI", action='store_true',
+                        help='Boolean flag indicating that confidence intervals should be calculated.')
     args = parser.parse_args()
 
     # Call main routine
-    main(samples=args.samples, training_sizes=args.training_sizes)
+    main(samples=args.samples, training_sizes=args.training_sizes, CI=args.CI)
