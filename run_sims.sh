@@ -22,7 +22,6 @@ n_train=300000
 n_test=100000
 n_samples=30
 
-install_path = paste("/home/", netid, "/R/4.0.4", sep='')
 mkdir "/home/$USER/R/4.0.4"
 
 R --no-save -q -e 'install.packages("arrow", lib="/home/$USER/R/4.0.4", repos="https://cran.r-project.org”)'
