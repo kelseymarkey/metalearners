@@ -136,3 +136,6 @@ data/**
 
 # Desktop Services Store
 .DS_Store
+
+# NetID
+configurations/netid.txt
