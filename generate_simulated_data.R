@@ -1,8 +1,8 @@
 # Generate data for specific simulations
 # Simulations A, B, C, and D recreate synthetic datasets from Kunzel et al
 
-
-netid = read.delim(file.path(".", "configurations", "netid.txt"))
+print(getwd())
+netid = read.delim(file.path(getwd(), "configurations", "netid.txt"))
 install_path = paste("/home/", netid, "/R/4.0.4", sep='')
 
 #install.packages("arrow", lib=install_path)
