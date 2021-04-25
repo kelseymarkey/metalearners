@@ -1,21 +1,16 @@
 # Generate data for specific simulations
 # Simulations A, B, C, and D recreate synthetic datasets from Kunzel et al
 
-# read in netID
-netid = read.delim('configurations/netid.txt')
-
 # Create folder in home directory to hold R installs
-install_path = paste("/home/", netid, "/R/4.0.4", sep='')
-mkdir(install_path)
 
-install.packages("arrow", lib=install_path)
+#install.packages("arrow", lib=install_path)
 library("arrow", warn.conflicts = FALSE)
 
 # Valid simulations ready to be run
 working_sims <- c('A', 'B', 'C', 'D', 'E', 'F')
 
 # Get arguments from command line
-install.packages("argparse", lib=install_path)
+#install.packages("argparse", lib=install_path)
 library("argparse")
 parser <- ArgumentParser(description='Generate synthetic data')
 parser$add_argument('--sim', type="character",
@@ -27,15 +22,13 @@ parser$add_argument('--n_train', type="integer", default=300000,
                     help="Number of items in the training set")
 parser$add_argument('--n_test', type="integer", default=100000,
                     help="Number of items in the test set")
+parser$add_argument('--netid', type="character",
+                    help="NYU NetID (used for saving output)")
 
 args <- parser$parse_args()
 
 # Uncomment below to test in RStudio
 # args <- data.frame(sim='A', samp=1, n_train=3000, n_test=1000)
-
-# Set location
-#install.packages("here", lib=install_path)
-#library(here)
 
 # Load simulation functions
 source("causal_experiment_simulator.R")

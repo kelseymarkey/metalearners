@@ -7,8 +7,6 @@
 #SBATCH --job-name=metalearners_data_gen
 ##SBATCH --output=$SCRATCH/$USER/slurm_%j_%a.out
 
-echo "user is...... $USER"
-
 module purge
 module load r/gcc/4.0.4
 
@@ -24,6 +22,12 @@ n_train=300000
 n_test=100000
 n_samples=30
 
+install_path = paste("/home/", netid, "/R/4.0.4", sep='')
+mkdir "/home/$USER/R/4.0.4"
+
+R --no-save -q -e 'install.packages("arrow", lib="/home/$USER/R/4.0.4", repos="https://cran.r-project.org”)'
+R --no-save -q -e 'install.packages("argparse", lib="/home/$USER/R/4.0.4", repos="https://cran.r-project.org”)'
+
 # Array of simulations to generate
 SIMS=('A' 'B' 'C' 'D' 'E' 'F')
 
@@ -33,7 +37,7 @@ do
 
 	# Generate data
 	Rscript generate_simulated_data.R --sim $sim --samp $SLURM_ARRAY_TASK_ID \
-	--n_train $n_train --n_test $n_test
+	--n_train $n_train --n_test $n_test --user $USER
 
 	echo "     Finished generating $SLURM_ARRAY_TASK_ID/$n_samples samples of sim $sim "
 done
