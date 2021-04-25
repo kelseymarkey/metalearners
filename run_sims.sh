@@ -15,6 +15,8 @@ module load r/gcc/4.0.4
 # (to be sampled from later), and 100K test rows.
 # Will be run in an sbatch array SLURM job on the Greene cluster,
 # to produce 30 samples of each.
+# To run on command line in Greene cluster:
+#     sbatch --array=1-30 run_sims.sh
 
 n_train=300000
 n_test=100000
