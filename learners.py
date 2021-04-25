@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import json
 from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
 
 '''
 Small run usage example: python learners.py --samples 3 --training_sizes 5000 10000
@@ -181,7 +182,7 @@ def fit_get_mse_s(train, test, mu_base):
     return (tau_preds, mse)
 
 
-def fit_get_mse_x(train, test, mu0_base, mu1_base, tau0_base, tau1_base):
+def fit_get_mse_x(train, test, mu0_base, mu1_base, tau0_base, tau1_base, rf_prop=False):
     
     '''
     mu0_base: base learner that has already been initialized
@@ -198,8 +199,11 @@ def fit_get_mse_x(train, test, mu0_base, mu1_base, tau0_base, tau1_base):
     g_true = test['pscore'].to_numpy()
     
     #fit g using training data
-    g_fit = LogisticRegression(fit_intercept=True, max_iter=2000).fit(
-       X=X_train, y=W_train)
+    if rf_prop:
+        g_fit = RandomForestClassifier(random_state=0).fit(X=X_train, y=W_train)
+    else:
+        g_fit = LogisticRegression(fit_intercept=True, max_iter=2000, random_state=42).fit(
+            X=X_train, y=W_train)
     #predict on test set
     g_pred = g_fit.predict_proba(X_test)[:, 1]
     
@@ -227,7 +231,7 @@ def calc_CI(tau_preds):
     pass
 
 
-def main(samples=30, training_sizes=[5000, 10000, 20000, 100000, 300000], CI=False, export_preds=False):
+def main(samples=30, training_sizes=[5000, 10000, 20000, 100000, 300000], CI=False, export_preds=False, rf_prop=False):
     
     # Set root directory
     base_repo_dir = pathlib.Path(os.path.realpath(__file__)).parents[0]
@@ -328,7 +332,7 @@ def main(samples=30, training_sizes=[5000, 10000, 20000, 100000, 300000], CI=Fal
                             
                             # TODO: add logic for if other base learner types
                             (tau_preds_gtrue, tau_preds_gpred, mse_true, mse_pred) = fit_get_mse_x(
-                                    train, test, mu0_base, mu1_base, tau0_base, tau1_base)
+                                    train, test, mu0_base, mu1_base, tau0_base, tau1_base, rf_prop)
                             X_RF_PTrue.append(mse_true)
                             X_RF_PPred.append(mse_pred)
 
@@ -370,8 +374,12 @@ if __name__ == "__main__":
     parser.add_argument("--CI", action='store_true',
                         help='Boolean flag indicating that confidence intervals should be calculated.')
     parser.add_argument("--export_preds", action='store_true',
-                        help='Boolean flag indicating that predictions (e.g. y0_preds, y1_preds for T and S learner) should be exported.')
+                        help='Boolean flag indicating that predictions (e.g. y0_preds, y1_preds for T learner) ' +
+                        'should be exported.')
+    parser.add_argument("--rf_prop", action='store_true',
+                        help='Boolean flag indicating that RandomForestClassifier should be used for ' +
+                        'predicted propensity scores. Without flag LogisticRegression is used.')
     args = parser.parse_args()
 
     # Call main routine
-    main(samples=args.samples, training_sizes=args.training_sizes, CI=args.CI, export_preds=args.export_preds)
+    main(samples=args.samples, training_sizes=args.training_sizes, CI=args.CI, export_preds=args.export_preds, rf_prop=args.rf_prop)
