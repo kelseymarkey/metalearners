@@ -148,10 +148,10 @@ sim_test <-cbind(sim$feat_te,
 netid = read.delim(here('configurations/netid.txt'))
 
 # Path of output directory
-output_dir = paste('scratch/',netid,'/metalearners_data/sim',args$sim, sep='')
+output_dir = paste('/scratch/',netid,'/metalearners_data/sim',args$sim, sep='')
 
 # Make output directory if necessary
-mkdir(output_dir )
+mkdir(output_dir)
 
 # Save training set
 train_filepath = paste(output_dir,'/samp', args$samp, '_train.parquet', sep='')

@@ -1,5 +1,15 @@
 #!/bin/bash
 
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --time=30:00
+#SBATCH --mem=4GB
+#SBATCH --job-name=metalearners_data_gen
+##SBATCH --output=$SCRATCH/$USER/slurm_%j_%a.out
+
+module purge
+module load r/gcc/4.0.4
+
 # This script generates a training and test dataset for
 # each simulation (A, B, C, D, E, and F) with 300K training rows
 # (to be sampled from later), and 100K test rows.
@@ -18,8 +28,8 @@ do
 	echo "BEGIN SIMULATION $sim"
 
 	# Generate data
-		Rscript generate_simulated_data.R --sim $sim --samp $SLURM_ARRAY_TASK_ID \
-		--n_train $n_train --n_test $n_test
+	Rscript generate_simulated_data.R --sim $sim --samp $SLURM_ARRAY_TASK_ID \
+	--n_train $n_train --n_test $n_test
 
-		echo "     Finished generating $SLURM_ARRAY_TASK_ID/$n_samples samples of sim $sim "
+	echo "     Finished generating $SLURM_ARRAY_TASK_ID/$n_samples samples of sim $sim "
 done
