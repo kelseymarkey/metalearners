@@ -24,8 +24,8 @@ n_samples=30
 
 mkdir "/home/$USER/R/4.0.4"
 
-R --no-save -q -e 'install.packages("arrow", lib="/home/$USER/R/4.0.4", repos="https://cran.r-project.org”)'
-R --no-save -q -e 'install.packages("argparse", lib="/home/$USER/R/4.0.4", repos="https://cran.r-project.org”)'
+R --no-save -q -e 'install.packages("arrow", lib="/home/akr435/R/4.0.4", repos="https://cran.r-project.org”)'
+R --no-save -q -e 'install.packages("argparse", lib="/home/akr435/R/4.0.4", repos="https://cran.r-project.org”)'
 
 # Array of simulations to generate
 SIMS=('A' 'B' 'C' 'D' 'E' 'F')
@@ -36,7 +36,7 @@ do
 
 	# Generate data
 	Rscript generate_simulated_data.R --sim $sim --samp $SLURM_ARRAY_TASK_ID \
-	--n_train $n_train --n_test $n_test #--user $USER
+	--n_train $n_train --n_test $n_test 
 
 	echo "     Finished generating $SLURM_ARRAY_TASK_ID/$n_samples samples of sim $sim "
 done
