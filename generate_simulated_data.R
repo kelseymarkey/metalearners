@@ -2,7 +2,7 @@
 # Simulations A, B, C, and D recreate synthetic datasets from Kunzel et al
 
 # read in netID
-netid = read.delim(here('configurations/netid.txt'))
+netid = read.delim('configurations/netid.txt')
 
 # Create folder in home directory to hold R installs
 install_path = paste("/home/", netid, "/R/4.0.4", sep='')
@@ -34,8 +34,8 @@ args <- parser$parse_args()
 # args <- data.frame(sim='A', samp=1, n_train=3000, n_test=1000)
 
 # Set location
-install.packages("here", lib=install_path)
-library(here)
+#install.packages("here", lib=install_path)
+#library(here)
 
 # Load simulation functions
 source("causal_experiment_simulator.R")
