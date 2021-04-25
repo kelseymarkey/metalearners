@@ -5,7 +5,9 @@ netid = read.delim(file.path(getwd(), "configurations", "netid.txt"),
                    header=FALSE, sep="\t")
 install_path = paste("/home/", netid, "/R/4.0.4", sep='')
 
-install.packages("arrow", lib=install_path, repos='https://cran.r-project.org')
+print(Sys.getenv("SLURM_ARRAY_TASK_ID"))
+print(Sys.getenv("USER"))
+
 library("arrow", lib=install_path, warn.conflicts = FALSE)
 
 # Valid simulations ready to be run
