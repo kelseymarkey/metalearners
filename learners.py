@@ -41,7 +41,12 @@ class t_learner:
         y1_preds = self.mu1_base.predict(X)
         y0_preds = self.mu0_base.predict(X)
         tau_preds = y1_preds - y0_preds
-        return tau_preds.flatten()
+
+        export_df = X.copy(deep=True)
+        export_df["y1_preds"] = y1_preds.flatten()
+        export_df["y0_preds"] = y0_preds.flatten()
+        export_df["tau_preds"] = tau_preds.flatten()
+        return export_df
 
 
 class s_learner:
@@ -140,12 +145,12 @@ def fit_get_mse_t(train, test, mu0_base, mu1_base):
     T.fit(X=X_train, W=W_train, y=y_train)
     
     # Predict test-set CATEs
-    tau_preds = T.predict(X=X_test)
+    export_df = T.predict(X=X_test)
 
     # Calculate MSE on test set
-    mse = np.mean((tau_preds - test.tau)**2)
+    mse = np.mean((export_df.tau_preds - test.tau)**2)
 
-    return (tau_preds, mse)
+    return (mse, export_df)
 
 
 def fit_get_mse_s(train, test, mu_base):
@@ -222,7 +227,7 @@ def calc_CI(tau_preds):
     pass
 
 
-def main(samples=30, training_sizes=[5000, 10000, 20000, 100000, 300000], CI=False):
+def main(samples=30, training_sizes=[5000, 10000, 20000, 100000, 300000], CI=False, export_preds=False):
     
     # Set root directory
     base_repo_dir = pathlib.Path(os.path.realpath(__file__)).parents[0]
@@ -246,7 +251,6 @@ def main(samples=30, training_sizes=[5000, 10000, 20000, 100000, 300000], CI=Fal
         print('Training set size:', train_size)
         
         for sim in ['simA', 'simB', 'simC', 'simD', 'simE', 'simF']:
-            #print('---------------------------')
             print('     Starting '+ sim)
 
             T_RF = []
@@ -255,7 +259,6 @@ def main(samples=30, training_sizes=[5000, 10000, 20000, 100000, 300000], CI=Fal
             X_RF_PPred = []
 
             for i in range(samples):
-                #print('')
                 samp_train_name = 'samp' + str(i+1) + '_train.parquet'
                 samp_test_name = 'samp' + str(i+1) + '_test.parquet'
                 train = pd.read_parquet(base_repo_dir / 'data' / str(train_size) / sim / samp_train_name)
@@ -265,7 +268,6 @@ def main(samples=30, training_sizes=[5000, 10000, 20000, 100000, 300000], CI=Fal
                     
                     if metalearner == 'T':
                         for base_learner_dict in meta_base_dict[metalearner]:
-                            #print(sim+'/' +'sample_'+str(i+1)+'/'+metalearner+'-learner:')
                             if base_learner_dict['mu_0'] == 'rf':
                                 mu0_hyperparams = rf_params[metalearner]['mu_0'][sim]
                                 # uncomment out all of these lines once hyperparameter jsons updated from tuning
@@ -275,19 +277,21 @@ def main(samples=30, training_sizes=[5000, 10000, 20000, 100000, 300000], CI=Fal
                                 mu1_hyperparams = rf_params[metalearner]['mu_1'][sim]
                                 #mu1_base = RegressionForest(honest=True, random_state=42, **mu1_hyperparams)
                                 mu1_base = RegressionForest(honest=True, random_state=42)
-
                             # TODO: add logic for if base_learner_dict[mu_0]/[mu_1] is other base learner type
-                            (tau_preds, mse) = fit_get_mse_t(train, test, mu0_base, mu1_base)
-                            T_RF.append(mse)
-                            #print('     MSE=', mse)
+
+                            if CI or export_preds:
+                                (mse, export_df) = fit_get_mse_t(train, test, mu0_base, mu1_base)
+                            else:
+                                (mse, __) = fit_get_mse_t(train, test, mu0_base, mu1_base)
 
                             if CI:
                                 calc_CI(tau_preds)
 
+                            T_RF.append(mse)
+
 
                     if metalearner == 'S':
                         for base_learner_dict in meta_base_dict[metalearner]:
-                            #print(sim+'/' +'sample_'+str(i+1)+'/'+ metalearner+'-learner:')
                             if base_learner_dict['mu'] == 'rf':
                                 mu_hyperparams = rf_params[metalearner]['mu'][sim]
                                 # uncomment out all of these lines once hyperparameter jsons updated from tuning
@@ -297,7 +301,6 @@ def main(samples=30, training_sizes=[5000, 10000, 20000, 100000, 300000], CI=Fal
                             # TODO: add logic for if base_learner_dict[mu] is other base learner type
                             (tau_preds, mse) = fit_get_mse_s(train, test, mu_base)
                             S_RF.append(mse)
-                            #print('     MSE=', mse)
 
                             if CI:
                                 calc_CI(tau_preds)
@@ -305,7 +308,6 @@ def main(samples=30, training_sizes=[5000, 10000, 20000, 100000, 300000], CI=Fal
                             
                     if metalearner == 'X':
                         for base_learner_dict in meta_base_dict[metalearner]:
-                            #print(sim+'/' +'sample_'+str(i+1)+'/'+ metalearner+'-learner:')
                             if base_learner_dict['mu_0'] == 'rf':
                                 mu0_hyperparams = rf_params[metalearner]['mu_0'][sim]
                                 # uncomment out all of these lines once hyperparameter jsons updated from tuning
@@ -329,15 +331,26 @@ def main(samples=30, training_sizes=[5000, 10000, 20000, 100000, 300000], CI=Fal
                                     train, test, mu0_base, mu1_base, tau0_base, tau1_base)
                             X_RF_PTrue.append(mse_true)
                             X_RF_PPred.append(mse_pred)
-                            #print('     MSE (true pscore)=', mse_true)
-                            #print('     MSE (estimated pscore)=', mse_pred)
 
                             if CI:
                                 # TODO: Decide if want to calculate CIs for both tau_preds with true g & predicted g
                                 calc_CI(tau_preds=tau_preds_gpred)
 
+
+                    if export_preds and i == 0 and train_size == 300000 and metalearner == 'T':
+                        # Export predictions for first sample if export_preds flag. Only for largest sample size
+                        # TODO: Implement for metalearner == S and X
+                        # TODO: This needs to be adapted for multiple items in meta_base_dict.
+                        # So that it saves files for each configuration and name includes type of base learner
+                        export_dir = os.path.join(base_repo_dir, 'data', 'preds')
+                        if not os.path.exists(export_dir):
+                            os.makedirs(export_dir)
+                        filename = sim + '_' + metalearner + '_' + str(train_size) + '.parquet'
+                        export_df.to_parquet(os.path.join(export_dir, filename))
+
+
             rows.append([sim, train_size, np.mean(T_RF), np.mean(S_RF), np.mean(X_RF_PTrue), np.mean(X_RF_PPred)])
-            #print(rows)                             
+
     columns=['simulation', 'n', 'T_RF', 'S_RF', 'X_RF_PTrue', 'X_RF_PPred']
     results = pd.DataFrame(rows, columns=columns)
     results.sort_values(by=['simulation', 'n'], inplace=True)
@@ -356,7 +369,9 @@ if __name__ == "__main__":
                         help='Training set sizes to read in from data directory')
     parser.add_argument("--CI", action='store_true',
                         help='Boolean flag indicating that confidence intervals should be calculated.')
+    parser.add_argument("--export_preds", action='store_true',
+                        help='Boolean flag indicating that predictions (e.g. y0_preds, y1_preds for T and S learner) should be exported.')
     args = parser.parse_args()
 
     # Call main routine
-    main(samples=args.samples, training_sizes=args.training_sizes, CI=args.CI)
+    main(samples=args.samples, training_sizes=args.training_sizes, CI=args.CI, export_preds=args.export_preds)
