@@ -3,7 +3,7 @@
 
 print(file.path(getwd(), "configurations", "netid.txt"))
 netid = read.delim(file.path(getwd(), "configurations", "netid.txt"))
-print(net_id)
+print(netid)
 install_path = paste("/home/", netid, "/R/4.0.4", sep='')
 print(install_path)
 
