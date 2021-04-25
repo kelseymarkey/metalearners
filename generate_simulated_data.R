@@ -1,14 +1,21 @@
 # Generate data for specific simulations
 # Simulations A, B, C, and D recreate synthetic datasets from Kunzel et al
 
-install.packages("arrow")
+# read in netID
+netid = read.delim(here('configurations/netid.txt'))
+
+# Create folder in home directory to hold R installs
+install_path = paste("/home/", netid, "/R/4.0.4", sep='')
+mkdir(install_path)
+
+install.packages("arrow", lib=install_path)
 library("arrow", warn.conflicts = FALSE)
 
 # Valid simulations ready to be run
 working_sims <- c('A', 'B', 'C', 'D', 'E', 'F')
 
 # Get arguments from command line
-install.packages("argparse")
+install.packages("argparse", lib=install_path)
 library("argparse")
 parser <- ArgumentParser(description='Generate synthetic data')
 parser$add_argument('--sim', type="character",
@@ -27,7 +34,7 @@ args <- parser$parse_args()
 # args <- data.frame(sim='A', samp=1, n_train=3000, n_test=1000)
 
 # Set location
-install.packages("here")
+install.packages("here", lib=install_path)
 library(here)
 
 # Load simulation functions
@@ -147,9 +154,6 @@ sim_test <-cbind(sim$feat_te,
                   Y = sim$Yobs_te,
                   pscore = sim$Pscore_te,
                   tau = sim$tau_te)
-
-# read in netID
-netid = read.delim(here('configurations/netid.txt'))
 
 # Path of output directory
 output_dir = paste('/scratch/',netid,'/metalearners_data/sim',args$sim, sep='')
