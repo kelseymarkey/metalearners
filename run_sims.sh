@@ -7,6 +7,8 @@
 #SBATCH --job-name=metalearners_data_gen
 ##SBATCH --output=$SCRATCH/$USER/slurm_%j_%a.out
 
+echo "user is...... $USER"
+
 module purge
 module load r/gcc/4.0.4
 
