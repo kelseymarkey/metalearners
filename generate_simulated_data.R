@@ -1,11 +1,14 @@
 # Generate data for specific simulations
 # Simulations A, B, C, and D recreate synthetic datasets from Kunzel et al
+
+install.packages("arrow")
 library("arrow", warn.conflicts = FALSE)
 
 # Valid simulations ready to be run
 working_sims <- c('A', 'B', 'C', 'D', 'E', 'F')
 
 # Get arguments from command line
+install.packages("argparse")
 library("argparse")
 parser <- ArgumentParser(description='Generate synthetic data')
 parser$add_argument('--sim', type="character",
@@ -24,6 +27,7 @@ args <- parser$parse_args()
 # args <- data.frame(sim='A', samp=1, n_train=3000, n_test=1000)
 
 # Set location
+install.packages("here")
 library(here)
 
 # Load simulation functions
