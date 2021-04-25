@@ -35,8 +35,7 @@ do
 	echo "BEGIN SIMULATION $sim"
 
 	# Generate data
-	Rscript generate_simulated_data.R --sim $sim --samp $SLURM_ARRAY_TASK_ID \
-	--n_train $n_train --n_test $n_test 
+	Rscript generate_simulated_data.R --sim $sim --n_train $n_train --n_test $n_test 
 
 	echo "     Finished generating $SLURM_ARRAY_TASK_ID/$n_samples samples of sim $sim "
 done

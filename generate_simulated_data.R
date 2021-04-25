@@ -1,12 +1,11 @@
 # Generate data for specific simulations
 # Simulations A, B, C, and D recreate synthetic datasets from Kunzel et al
 
-netid = read.delim(file.path(getwd(), "configurations", "netid.txt"), 
-                   header=FALSE, sep="\t")
+netid = Sys.getenv("USER")
+samp = Sys.getenv("SLURM_ARRAY_TASK_ID")
+
 install_path = paste("/home/", netid, "/R/4.0.4", sep='')
 
-print(Sys.getenv("SLURM_ARRAY_TASK_ID"))
-print(Sys.getenv("USER"))
 
 library("arrow", lib=install_path, warn.conflicts = FALSE)
 
@@ -20,14 +19,10 @@ parser <- ArgumentParser(description='Generate synthetic data')
 parser$add_argument('--sim', type="character",
                     help=paste("Which simulation to run. Must be one of: (",
                                paste(working_sims, collapse=', '), ")", sep=''))
-parser$add_argument('--samp', type="integer",
-                    help="Which sample number this should be saved as. Will also be used as random seed")
 parser$add_argument('--n_train', type="integer", default=300000,
                     help="Number of items in the training set")
 parser$add_argument('--n_test', type="integer", default=100000,
                     help="Number of items in the test set")
-# parser$add_argument('--netid', type="character",
-#                     help="NYU NetID (used for saving output)")
 
 args <- parser$parse_args()
 
