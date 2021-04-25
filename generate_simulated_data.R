@@ -5,14 +5,14 @@ netid = read.delim(file.path(getwd(), "configurations", "netid.txt"),
                    header=FALSE, sep="\t")
 install_path = paste("/home/", netid, "/R/4.0.4", sep='')
 
-#install.packages("arrow", lib=install_path)
+install.packages("arrow", lib=install_path)
 library("arrow", lib=install_path, warn.conflicts = FALSE)
 
 # Valid simulations ready to be run
 working_sims <- c('A', 'B', 'C', 'D', 'E', 'F')
 
 # Get arguments from command line
-#install.packages("argparse", lib=install_path)
+install.packages("argparse", lib=install_path)
 library("argparse", lib=install_path)
 parser <- ArgumentParser(description='Generate synthetic data')
 parser$add_argument('--sim', type="character",
