@@ -2,7 +2,8 @@
 # Simulations A, B, C, and D recreate synthetic datasets from Kunzel et al
 
 print(file.path(getwd(), "configurations", "netid.txt"))
-netid = read.delim(file.path(getwd(), "configurations", "netid.txt"))
+netid = read.delim(file.path(getwd(), "configurations", "netid.txt"), 
+                   header=FALSE, sep="\t"))
 print(netid)
 install_path = paste("/home/", netid, "/R/4.0.4", sep='')
 print(install_path)
