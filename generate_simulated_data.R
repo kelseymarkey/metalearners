@@ -144,13 +144,19 @@ sim_test <-cbind(sim$feat_te,
                   pscore = sim$Pscore_te,
                   tau = sim$tau_te)
 
-# save train and test dataframes to parquet
-file_train = here('data',  args$n_train, paste('sim', args$sim, sep=''),
-                  paste('samp', args$samp, '_train.parquet', sep='')
-                  )
-write_parquet(sim_train, file_train)
+# read in netID
+netid = read.delim(here('configurations/netid.txt'))
 
-file_test = here('data', args$n_train, paste('sim', args$sim, sep=''),
-            paste('samp', args$samp, '_test.parquet', sep='')
-            )
-write_parquet(sim_test, file_test)
+# Path of output directory
+output_dir = paste('scratch/',netid,'/metalearners_data/sim',args$sim, sep='')
+
+# Make output directory if necessary
+mkdir(output_dir )
+
+# Save training set
+train_filepath = paste(output_dir,'/samp', args$samp, '_train.parquet', sep='')
+write_parquet(sim_train, train_filepath)
+
+# Save test set
+test_filepath = paste(output_dir,'/samp', args$samp, '_test.parquet', sep='')
+write_parquet(sim_test, test_filepath)

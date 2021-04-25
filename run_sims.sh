@@ -1,43 +1,25 @@
 #!/bin/bash
 
-# This script generates a training and test dataset for each
-# training set size in n_train. Test set sizes are all 100,000 rows.
-# 30 samples of each simulation (A, B, C, D, E, and F) 
+# This script generates a training and test dataset for
+# each simulation (A, B, C, D, E, and F) with 300K training rows
+# (to be sampled from later), and 100K test rows.
+# Will be run in an sbatch array SLURM job on the Greene cluster,
+# to produce 30 samples of each.
 
-n_train=(5000 10000 20000 100000 300000)
+n_train=300000
 n_test=100000
 n_samples=30
-
 
 # Array of simulations to generate
 SIMS=('A' 'B' 'C' 'D' 'E' 'F')
 
-
-for train_size in ${n_train[@]}
+for sim in ${SIMS[@]}
 do
-	# Create necessary directory
-	mkdir -p "data/$train_size/"
+	echo "BEGIN SIMULATION $sim"
 
-	for sim in ${SIMS[@]}
-	do
-		echo "BEGIN SIMULATION $sim"
+	# Generate data
+		Rscript generate_simulated_data.R --sim $sim --samp $SLURM_ARRAY_TASK_ID \
+		--n_train $n_train --n_test $n_test
 
-	    # Create necessary directory
-	    mkdir -p "data/$train_size/sim$sim"
-
-	    # Initialize counter
-	    i=1
-	    while [ $i -le $n_samples ]
-	    do
-	        # Generate data
-	        Rscript generate_simulated_data.R --sim $sim --samp $i \
-	        --n_train $train_size --n_test $n_test
-
-	        echo "     Finished generating $i/$n_samples samples of sim $sim "
-
-	        # Increase counter
-	        i=$(( $i + 1 ))
-
-	    done
-	done
+		echo "     Finished generating $SLURM_ARRAY_TASK_ID/$n_samples samples of sim $sim "
 done
