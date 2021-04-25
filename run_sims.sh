@@ -36,7 +36,7 @@ do
 
 	# Generate data
 	Rscript generate_simulated_data.R --sim $sim --samp $SLURM_ARRAY_TASK_ID \
-	--n_train $n_train --n_test $n_test --user $USER
+	--n_train $n_train --n_test $n_test #--user $USER
 
 	echo "     Finished generating $SLURM_ARRAY_TASK_ID/$n_samples samples of sim $sim "
 done

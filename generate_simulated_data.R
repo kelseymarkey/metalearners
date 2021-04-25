@@ -1,17 +1,19 @@
 # Generate data for specific simulations
 # Simulations A, B, C, and D recreate synthetic datasets from Kunzel et al
 
-# Create folder in home directory to hold R installs
+
+netid = read.delim(file.path(".", "configurations", "netid.txt"))
+install_path = paste("/home/", netid, "/R/4.0.4", sep='')
 
 #install.packages("arrow", lib=install_path)
-library("arrow", warn.conflicts = FALSE)
+library("arrow", lib=install_path, warn.conflicts = FALSE)
 
 # Valid simulations ready to be run
 working_sims <- c('A', 'B', 'C', 'D', 'E', 'F')
 
 # Get arguments from command line
 #install.packages("argparse", lib=install_path)
-library("argparse")
+library("argparse", lib=install_path)
 parser <- ArgumentParser(description='Generate synthetic data')
 parser$add_argument('--sim', type="character",
                     help=paste("Which simulation to run. Must be one of: (",
@@ -22,8 +24,8 @@ parser$add_argument('--n_train', type="integer", default=300000,
                     help="Number of items in the training set")
 parser$add_argument('--n_test', type="integer", default=100000,
                     help="Number of items in the test set")
-parser$add_argument('--netid', type="character",
-                    help="NYU NetID (used for saving output)")
+# parser$add_argument('--netid', type="character",
+#                     help="NYU NetID (used for saving output)")
 
 args <- parser$parse_args()
 
