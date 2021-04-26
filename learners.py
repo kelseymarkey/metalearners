@@ -289,7 +289,7 @@ def main(samples=30, training_sizes=[5000, 10000, 20000, 100000, 300000], CI=Fal
                                 (mse, __) = fit_get_mse_t(train, test, mu0_base, mu1_base)
 
                             if CI:
-                                calc_CI(tau_preds)
+                                calc_CI(export_df.tau_preds)
 
                             T_RF.append(mse)
 
@@ -360,7 +360,7 @@ def main(samples=30, training_sizes=[5000, 10000, 20000, 100000, 300000], CI=Fal
     results.sort_values(by=['simulation', 'n'], inplace=True)
     print('---------------------------')
     print('Results:\n', results)
-    results.to_csv('results.csv')
+    results.to_csv('results.csv', index=False)
     return
 
 if __name__ == "__main__":
