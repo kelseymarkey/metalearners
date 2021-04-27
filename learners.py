@@ -258,10 +258,8 @@ def main(args):
         for sim in ['simA', 'simB', 'simC', 'simD', 'simE', 'simF']:
             print('     Starting '+ sim)
 
-            T_RF = []
-            S_RF = []
-            X_RF_PTrue = []
-            X_RF_PPred = []
+            # Instantiate empty lists for saving mse results
+            T_results, S_results, X_results_PTrue, X_results_PPred= [], [], [], []
 
             for i in range(args.samples):
                 samp_train_name = 'samp' + str(i+1) + '_train.parquet'
@@ -288,7 +286,7 @@ def main(args):
                                 (mse, export_df) = fit_get_mse_t(train, test, mu0_base, mu1_base)
                             else:
                                 (mse, __) = fit_get_mse_t(train, test, mu0_base, mu1_base)
-                            T_RF.append(mse)
+                            T_results.append(mse)
 
 
                     if metalearner == 'S':
@@ -301,7 +299,7 @@ def main(args):
                             
                             # TODO: add logic for if base_learner_dict[mu] is other base learner type
                             (tau_preds, mse) = fit_get_mse_s(train, test, mu_base)
-                            S_RF.append(mse)
+                            S_results.append(mse)
 
                             # TODO: add CI / export_preds logic for S learner
 
@@ -329,8 +327,8 @@ def main(args):
                             # TODO: add logic for if other base learner types
                             (tau_preds_gtrue, tau_preds_gpred, mse_true, mse_pred) = fit_get_mse_x(
                                     train, test, mu0_base, mu1_base, tau0_base, tau1_base, args.rf_prop)
-                            X_RF_PTrue.append(mse_true)
-                            X_RF_PPred.append(mse_pred)
+                            X_results_PTrue.append(mse_true)
+                            X_results_PPred.append(mse_pred)
 
                             # TODO: add CI / export_preds logic for X learner
                             # Need to decide if we want to calc_CI for tau_preds with true g (tau_preds_gtrue)
@@ -354,9 +352,10 @@ def main(args):
                         export_df.to_parquet(os.path.join(export_dir, filename))
 
 
-            rows.append([sim, train_size, np.mean(T_RF), np.mean(S_RF), np.mean(X_RF_PTrue), np.mean(X_RF_PPred)])
+            rows.append([sim, train_size, np.mean(T_results), np.mean(S_results),
+                np.mean(X_results_PTrue), np.mean(X_results_PPred)])
 
-    columns=['simulation', 'n', 'T_RF', 'S_RF', 'X_RF_PTrue', 'X_RF_PPred']
+    columns=['simulation', 'n', 'T_mse', 'S_mse', 'X_mse_PTrue', 'X_mse_PPred']
     results = pd.DataFrame(rows, columns=columns)
     results.sort_values(by=['simulation', 'n'], inplace=True)
     print('---------------------------')
