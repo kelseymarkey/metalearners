@@ -231,7 +231,8 @@ def calc_CI(tau_preds):
     pass
 
 
-def main(samples=30, training_sizes=[5000, 10000, 20000, 100000, 300000], CI=False, export_preds=False, rf_prop=False):
+def main(args):
+    # samples=30, training_sizes=[5000, 10000, 20000, 100000, 300000], CI=False, export_preds=False, rf_prop=False
     
     # Set root directory
     base_repo_dir = pathlib.Path(os.path.realpath(__file__)).parents[0]
@@ -244,13 +245,13 @@ def main(samples=30, training_sizes=[5000, 10000, 20000, 100000, 300000], CI=Fal
     
     rf_params = {'T': rf_t, 'S': rf_s, 'X': rf_x}
     
-    # read in base learner model types for each metalearner
+    # read in file with base learner model types for each metalearner
     meta_base_dict = json.load(open(base_repo_dir / 'configurations' / 'base_learners' / 'base_learners.json'))
     
     #initialize temp list where results will be stored and column names for results df
     rows=[]
 
-    for train_size in training_sizes:
+    for train_size in args.training_sizes:
         print('---------------------------')
         print('Training set size:', train_size)
         
@@ -262,7 +263,7 @@ def main(samples=30, training_sizes=[5000, 10000, 20000, 100000, 300000], CI=Fal
             X_RF_PTrue = []
             X_RF_PPred = []
 
-            for i in range(samples):
+            for i in range(args.samples):
                 samp_train_name = 'samp' + str(i+1) + '_train.parquet'
                 samp_test_name = 'samp' + str(i+1) + '_test.parquet'
                 train = pd.read_parquet(base_repo_dir / 'data' / str(train_size) / sim / samp_train_name)
@@ -283,12 +284,12 @@ def main(samples=30, training_sizes=[5000, 10000, 20000, 100000, 300000], CI=Fal
                                 mu1_base = RegressionForest(honest=True, random_state=42)
                             # TODO: add logic for if base_learner_dict[mu_0]/[mu_1] is other base learner type
 
-                            if CI or export_preds:
+                            if args.CI or args.export_preds:
                                 (mse, export_df) = fit_get_mse_t(train, test, mu0_base, mu1_base)
                             else:
                                 (mse, __) = fit_get_mse_t(train, test, mu0_base, mu1_base)
 
-                            if CI:
+                            if args.CI:
                                 calc_CI(export_df.tau_preds)
 
                             T_RF.append(mse)
@@ -306,7 +307,7 @@ def main(samples=30, training_sizes=[5000, 10000, 20000, 100000, 300000], CI=Fal
                             (tau_preds, mse) = fit_get_mse_s(train, test, mu_base)
                             S_RF.append(mse)
 
-                            if CI:
+                            if args.CI:
                                 calc_CI(tau_preds)
 
                             
@@ -332,16 +333,16 @@ def main(samples=30, training_sizes=[5000, 10000, 20000, 100000, 300000], CI=Fal
                             
                             # TODO: add logic for if other base learner types
                             (tau_preds_gtrue, tau_preds_gpred, mse_true, mse_pred) = fit_get_mse_x(
-                                    train, test, mu0_base, mu1_base, tau0_base, tau1_base, rf_prop)
+                                    train, test, mu0_base, mu1_base, tau0_base, tau1_base, args.rf_prop)
                             X_RF_PTrue.append(mse_true)
                             X_RF_PPred.append(mse_pred)
 
-                            if CI:
+                            if args.CI:
                                 # TODO: Decide if want to calculate CIs for both tau_preds with true g & predicted g
                                 calc_CI(tau_preds=tau_preds_gpred)
 
 
-                    if export_preds and i == 0 and train_size == 300000 and metalearner == 'T':
+                    if args.export_preds and i == 0 and train_size == 300000 and metalearner == 'T':
                         # Export predictions for first sample if export_preds flag. Only for largest sample size
                         # TODO: Implement for metalearner == S and X
                         # TODO: This needs to be adapted for multiple items in meta_base_dict.
@@ -382,4 +383,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Call main routine
-    main(samples=args.samples, training_sizes=args.training_sizes, CI=args.CI, export_preds=args.export_preds, rf_prop=args.rf_prop)
+    main(args)
