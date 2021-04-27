@@ -288,10 +288,6 @@ def main(args):
                                 (mse, export_df) = fit_get_mse_t(train, test, mu0_base, mu1_base)
                             else:
                                 (mse, __) = fit_get_mse_t(train, test, mu0_base, mu1_base)
-
-                            if args.CI:
-                                calc_CI(export_df.tau_preds)
-
                             T_RF.append(mse)
 
 
@@ -307,8 +303,7 @@ def main(args):
                             (tau_preds, mse) = fit_get_mse_s(train, test, mu_base)
                             S_RF.append(mse)
 
-                            if args.CI:
-                                calc_CI(tau_preds)
+                            # TODO: add CI / export_preds logic for S learner
 
                             
                     if metalearner == 'X':
@@ -337,9 +332,14 @@ def main(args):
                             X_RF_PTrue.append(mse_true)
                             X_RF_PPred.append(mse_pred)
 
-                            if args.CI:
-                                # TODO: Decide if want to calculate CIs for both tau_preds with true g & predicted g
-                                calc_CI(tau_preds=tau_preds_gpred)
+                            # TODO: add CI / export_preds logic for X learner
+                            # Need to decide if we want to calc_CI for tau_preds with true g (tau_preds_gtrue)
+                            # or predicted g (tau_preds_gpred) or both. We can add both to export_df but what
+                            # to pass to tau_preds in calc_CI?
+
+
+                    if args.CI:
+                        calc_CI(tau_preds=export_df.tau_preds)
 
 
                     if args.export_preds and i == 0 and train_size == 300000 and metalearner == 'T':
