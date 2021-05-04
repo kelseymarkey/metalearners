@@ -6,12 +6,13 @@ from sklearn import clone
 import os, pathlib
 import numpy as np
 import pandas as pd
+import re
 import json
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 
 '''
-Small run usage example: python learners.py --samples 3 --training_sizes 5000 10000
+Small run usage example: python learners.py --samples 3 --training_sizes 5000 --base_learner_filename base_learners_rf.json
 Currently fitting RF-based T, S, and X-Learner and predicting CATE for each row of test set.
 Does not save predictions or fit. Only prints and saves MSE.
 '''
@@ -246,7 +247,7 @@ def main(args):
     rf_params = {'T': rf_t, 'S': rf_s, 'X': rf_x}
     
     # read in file with base learner model types for each metalearner
-    meta_base_dict = json.load(open(base_repo_dir / 'configurations' / 'base_learners' / 'base_learners.json'))
+    meta_base_dict = json.load(open(base_repo_dir / 'configurations' / 'base_learners' / args.base_learner_filename))
     
     #initialize temp list where results will be stored and column names for results df
     rows=[]
@@ -360,8 +361,14 @@ def main(args):
     results.sort_values(by=['simulation', 'n'], inplace=True)
     print('---------------------------')
     print('Results:\n', results)
-    results.to_csv('results.csv', index=False)
+
+    # Save results
+    substring = re.search('base_learners_(.*?).json', args.base_learner_filename).group(1)
+    filename = 'results_' + substring + '.csv'
+    results.to_csv(filename, index=False)
+
     return
+
 
 if __name__ == "__main__":
 
@@ -379,6 +386,9 @@ if __name__ == "__main__":
     parser.add_argument("--rf_prop", action='store_true',
                         help='Boolean flag indicating that RandomForestClassifier should be used for ' +
                         'predicted propensity scores. Without flag LogisticRegression is used.')
+    parser.add_argument("--base_learner_filename", type=str, default='base_learners.json',
+                        help='Name of base learner file to use. Should be of form base_learners_XX.json ' +
+                        'and reside in configurations/base_learners')
     args = parser.parse_args()
 
     # Call main routine
