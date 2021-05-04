@@ -39,16 +39,20 @@ class t_learner:
         self.mu0_base.fit(X[W==0], y[W==0])
         self.mu1_base.fit(X[W==1], y[W==1])
 
-    def predict(self, X):
+    def predict(self, X, export_preds=False):
         y1_preds = self.mu1_base.predict(X)
         y0_preds = self.mu0_base.predict(X)
         tau_preds = y1_preds - y0_preds
 
-        export_df = X.copy(deep=True)
-        export_df["y1_preds"] = y1_preds.flatten()
-        export_df["y0_preds"] = y0_preds.flatten()
-        export_df["tau_preds"] = tau_preds.flatten()
-        return export_df
+        if export_preds:
+            export_df = X.copy(deep=True)
+            export_df["y1_preds"] = y1_preds.flatten()
+            export_df["y0_preds"] = y0_preds.flatten()
+            export_df["tau_preds"] = tau_preds.flatten()
+            return export_df
+
+        else:
+            return tau_preds.flatten()
 
 
 class s_learner:
@@ -129,7 +133,7 @@ class x_learner:
         return tau_preds.flatten()
 
 
-def fit_get_mse_t(train, test, mu0_base, mu1_base):
+def fit_get_mse_t(train, test, mu0_base, mu1_base, export_preds=False):
     
     '''
     mu0_base: base learner that has already been initialized
@@ -146,12 +150,16 @@ def fit_get_mse_t(train, test, mu0_base, mu1_base):
     T = t_learner(mu0_base=mu0_base, mu1_base=mu1_base)
     T.fit(X=X_train, W=W_train, y=y_train)
     
-    # Predict test-set CATEs
-    export_df = T.predict(X=X_test)
-
+    if export_preds:
+        # Predict test-set CATEs
+        export_df = T.predict(X=X_test, export_preds=export_preds)
+        tau_preds = export_df.tau_preds
+    else:
+        # Predict test-set CATEs
+        tau_preds = T.predict(X=X_test, export_preds=export_preds)
+        export_df = None
     # Calculate MSE on test set
-    mse = np.mean((export_df.tau_preds - test.tau)**2)
-
+    mse = np.mean((tau_preds - test.tau)**2)
     return (mse, export_df)
 
 
@@ -233,7 +241,6 @@ def calc_CI(tau_preds):
 
 
 def main(args):
-    # samples=30, training_sizes=[5000, 10000, 20000, 100000, 300000], CI=False, export_preds=False, rf_prop=False
     
     # Set root directory
     base_repo_dir = pathlib.Path(os.path.realpath(__file__)).parents[0]
@@ -284,9 +291,9 @@ def main(args):
                             # TODO: add logic for if base_learner_dict[mu_0]/[mu_1] is other base learner type
 
                             if args.CI or args.export_preds:
-                                (mse, export_df) = fit_get_mse_t(train, test, mu0_base, mu1_base)
+                                (mse, export_df) = fit_get_mse_t(train, test, mu0_base, mu1_base, export_preds=True)
                             else:
-                                (mse, __) = fit_get_mse_t(train, test, mu0_base, mu1_base)
+                                (mse, _) = fit_get_mse_t(train, test, mu0_base, mu1_base, export_preds=False)
                             T_results.append(mse)
 
 
@@ -344,8 +351,6 @@ def main(args):
                     if args.export_preds and i == 0 and train_size == 300000 and metalearner == 'T':
                         # Export predictions for first sample if export_preds flag. Only for largest sample size
                         # TODO: Implement for metalearner == S and X
-                        # TODO: This needs to be adapted for multiple items in meta_base_dict.
-                        # So that it saves files for each configuration and name includes type of base learner
                         export_dir = os.path.join(base_repo_dir, 'data', 'preds')
                         if not os.path.exists(export_dir):
                             os.makedirs(export_dir)
