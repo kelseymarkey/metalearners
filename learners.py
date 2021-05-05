@@ -50,7 +50,6 @@ class t_learner:
             export_df["y0_preds"] = y0_preds.flatten()
             export_df["tau_preds"] = tau_preds.flatten()
             return export_df
-
         else:
             return tau_preds.flatten()
 
@@ -73,7 +72,7 @@ class s_learner:
         # Call fit method
         self.mu_base.fit(X_W, y)
 
-    def predict(self, X):
+    def predict(self, X, export_preds=False):
         X_W_1 = X.copy(deep=True)
         X_W_1["W"] = pd.Series(np.ones(len(X_W_1)))
         y1_preds = self.mu_base.predict(X_W_1)
@@ -83,7 +82,15 @@ class s_learner:
         y0_preds = self.mu_base.predict(X_W_0)
 
         tau_preds = y1_preds - y0_preds
-        return tau_preds.flatten()
+
+        if export_preds:
+            export_df = X.copy(deep=True)
+            export_df["y1_preds"] = y1_preds.flatten()
+            export_df["y0_preds"] = y0_preds.flatten()
+            export_df["tau_preds"] = tau_preds.flatten()
+            return export_df
+        else:
+            return tau_preds.flatten()
 
 
 class x_learner:
@@ -163,7 +170,7 @@ def fit_get_mse_t(train, test, mu0_base, mu1_base, export_preds=False):
     return (mse, export_df)
 
 
-def fit_get_mse_s(train, test, mu_base):
+def fit_get_mse_s(train, test, mu_base, export_preds=False):
     
     '''
     mu_base: base learner that has already been initialized
@@ -181,14 +188,18 @@ def fit_get_mse_s(train, test, mu_base):
     #fit S-learner
     X_W = pd.concat([X_train, W_train], axis=1)
     S.fit(X_W=X_W, y=y_train)
-    
-    # Predict test-set CATEs
-    tau_preds = S.predict(X=X_test)
 
+    if export_preds:
+        # Predict test-set CATEs
+        export_df = S.predict(X=X_test, export_preds=export_preds)
+        tau_preds = export_df.tau_preds
+    else:
+        # Predict test-set CATEs
+        tau_preds = S.predict(X=X_test, export_preds=export_preds)
+        export_df = None
     # Calculate MSE on test set
     mse = np.mean((tau_preds - test.tau)**2)
-
-    return (tau_preds, mse)
+    return (mse, export_df)
 
 
 def fit_get_mse_x(train, test, mu0_base, mu1_base, tau0_base, tau1_base, rf_prop=False):
@@ -306,10 +317,11 @@ def main(args):
                                 mu_base = RegressionForest(honest=True, random_state=42)
                             
                             # TODO: add logic for if base_learner_dict[mu] is other base learner type
-                            (tau_preds, mse) = fit_get_mse_s(train, test, mu_base)
+                            if args.CI or args.export_preds:
+                                (mse, export_df) = fit_get_mse_s(train, test, mu_base, export_preds=True)
+                            else:
+                                (mse, _) = fit_get_mse_s(train, test, mu_base, export_preds=False)
                             S_results.append(mse)
-
-                            # TODO: add CI / export_preds logic for S learner
 
                             
                     if metalearner == 'X':
@@ -348,9 +360,9 @@ def main(args):
                         calc_CI(tau_preds=export_df.tau_preds)
 
 
-                    if args.export_preds and i == 0 and train_size == 300000 and metalearner == 'T':
+                    if args.export_preds and i == 0 and train_size == 300000 and metalearner != 'X':
                         # Export predictions for first sample if export_preds flag. Only for largest sample size
-                        # TODO: Implement for metalearner == S and X
+                        # TODO: Implement for metalearner == X
                         export_dir = os.path.join(base_repo_dir, 'data', 'preds')
                         if not os.path.exists(export_dir):
                             os.makedirs(export_dir)
