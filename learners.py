@@ -34,19 +34,9 @@ class t_learner:
         self.mu1_base = clone(mu1_base, safe=False)
 
     def fit(self, X, W, y, sample_weight=None):
-        # Define sample weights for each learner
-        if sample_weight:
-            if isinstance(self.mu0_base, LinearRegression):
-                sw0 = 1 / sample_weight
-            if isinstance(self.mu1_base, LinearRegression):
-                sw1 = sample_weight
-        else:
-            sw0 = None
-            sw1 = None
-        
         # Call fit methods on each base learner
-        self.mu0_base.fit(X[W==0], y[W==0], sample_weight=sw0)
-        self.mu1_base.fit(X[W==1], y[W==1], sample_weight=sw1)
+        self.mu0_base.fit(X[W==0], y[W==0], sample_weight=sample_weight['mu0_base'])
+        self.mu1_base.fit(X[W==1], y[W==1], sample_weight=sample_weight['mu1_base'])
 
     def predict(self, X):
         y1_preds = self.mu1_base.predict(X)
@@ -111,8 +101,8 @@ class x_learner:
 
     def fit(self, X, W, y, sample_weight=None):
         # Call fit method
-        self.mu0_base.fit(X[W==0], y[W==0], sample_weight=sample_weight)
-        self.mu1_base.fit(X[W==1], y[W==1], sample_weight=sample_weight)
+        self.mu0_base.fit(X[W==0], y[W==0], sample_weight=sample_weight['mu0_base'])
+        self.mu1_base.fit(X[W==1], y[W==1], sample_weight=sample_weight['mu1_base'])
     
         #Impute y0 for treated group using mu0
         y0_treat=self.mu0_base.predict(X[W==1]).flatten()
@@ -123,10 +113,12 @@ class x_learner:
         imputed_TE_control = y1_control - y[W==0] 
 
         #Fit tau0: CATE estimate fit to the control group
-        self.tau0_base.fit(X[W==0], imputed_TE_control, sample_weight=sample_weight)
+        self.tau0_base.fit(X[W==0], imputed_TE_control, 
+            sample_weight=sample_weight['tau0_base'])
 
         #Fit tau1: CATE estimate fit to the treatment group
-        self.tau1_base.fit(X[W==1], imputed_TE_treatment, sample_weight=sample_weight)
+        self.tau1_base.fit(X[W==1], imputed_TE_treatment, 
+            sample_weight=sample_weight['tau1_base'])
 
     def predict(self, X, g):
         '''
@@ -152,6 +144,7 @@ def fit_get_mse_t(train, test, mu0_base, mu1_base, rf_prop=False):
     X_test = test.drop(columns=['treatment', 'Y', 'tau', 'pscore'])
 
     # Calculate sample weights if mu0 or mu1 is IW-weighted linear regression
+    sample_weight = {'mu0_base': None, 'mu1_base': None}
     if isinstance(mu0_base, LinearRegression) or isinstance(mu1_base, LinearRegression):
         #fit and predict g using training data
         if rf_prop:
@@ -162,10 +155,10 @@ def fit_get_mse_t(train, test, mu0_base, mu1_base, rf_prop=False):
         g_pred = g_fit.predict_proba(X_train)[:, 1]
 
         # Calculate importance weights from g
-        sample_weight = (1 - g_pred) / g_pred
-    
-    else:
-        sample_weight = None
+        if isinstance(mu0_base, LinearRegression):
+            sample_weight['mu0_base'] = g_pred / (1.0 - g_pred)
+        if isinstance(mu1_base, LinearRegression):
+            sample_weight['mu1_base'] = (1.0 - g_pred) / g_pred
 
     #initialize metalearner
     T = t_learner(mu0_base=mu0_base, mu1_base=mu1_base, sample_weight=sample_weight)
@@ -204,7 +197,6 @@ def fit_get_mse_s(train, test, mu_base, rf_prop=False):
 
         # Calculate importance weights from g
         sample_weight = 1.0 / g_pred
-    
     else:
         sample_weight = None
 
@@ -249,10 +241,28 @@ def fit_get_mse_x(train, test, mu0_base, mu1_base, tau0_base, tau1_base, rf_prop
     #predict on test set
     g_pred = g_fit.predict_proba(X_test)[:, 1]
     
+    # Calculate sample weights if any base learner is IW-weighted linear regression
+    sample_weight = {'mu0_base': None, 'mu1_base': None, 
+                     'tau0_base': None, 'tau1_base': None}
+    if isinstance(mu0_base, LinearRegression) or isinstance(mu1_base, LinearRegression)\
+    or isinstance(tau0_base, LinearRegression) or isinstance(tau1_base, LinearRegression):
+        #predict g using training data
+        g_pred = g_fit.predict_proba(X_train)[:, 1]
+
+        # Calculate importance weights from g
+        if isinstance(mu0_base, LinearRegression):
+            sample_weight['mu0_base'] = g_pred / (1.0 - g_pred)
+        if isinstance(mu1_base, LinearRegression):
+            sample_weight['mu1_base'] = (1.0 - g_pred) / g_pred
+        if isinstance(tau0_base, LinearRegression):
+            sample_weight['tau0_base'] = g_pred / (1.0 - g_pred)
+        if isinstance(tau1_base, LinearRegression):
+            sample_weight['tau1_base'] = (1.0 - g_pred) / g_pred
+    
     # initialize metalearner
     X_learner = x_learner(mu0_base=mu0_base, mu1_base=mu1_base, tau0_base=tau0_base, tau1_base=tau1_base)
     # Fit treatment and response estimators mu0 and  mu1
-    X_learner.fit(X=X_train, W=W_train, y=y_train)
+    X_learner.fit(X=X_train, W=W_train, y=y_train, sample_weight=sample_weight)
     
     # Predict test set CATEs using true and predicted propensities
     tau_preds_gtrue = X_learner.predict(X=X_test, g=g_true)
