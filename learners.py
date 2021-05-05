@@ -10,6 +10,7 @@ import re
 import json
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
+from functools import partial
 
 '''
 Small run usage example: python learners.py --samples 3 --training_sizes 5000 --base_learner_filename base_learners_rf.json
@@ -269,7 +270,10 @@ def fit_get_mse_x(train, test, mu0_base, mu1_base, tau0_base, tau1_base, rf_prop
     return (mse_true, mse_pred, export_df, export_df_train)
 
 
-def fit_predict():
+def fit_predict(metalearner, sim,
+                mu_algo=None, 
+                mu0_algo=None, mu1_algo=None,
+                tau0_algo=None, tau1_algo=None, g_algo=None):
 
     '''
     To be called by conf_int.py
@@ -286,7 +290,80 @@ def fit_predict():
     Similar to lines 323 - 403
     
     '''
+    
+    # dictionary to match algo code to partial init call
+    base_learners = {'rf': partial(RegressionForest, 
+                                   honest=True, random_state=42)}
+
+    # List of all algo codes to be used
+    algos = set([mu_algo, mu0_algo, mu1_algo, tau0_algo, tau1_algo, g_algo])
+
+    # Read in necessary hyperparameter settings
+    params = {}
+    for algo in algos:
+        if type(algo)==type(None):
+            continue
+        params[algo] = json.load(open(base_repo_dir / 'configurations' /\
+                                'hyperparameters' / '{}_{}.json'\
+                                    .format(algo, metalearner)))
+
+    if metalearner == 'T':
+        
+        # Confirm the correct settings were passed
+        assert ((type(mu0_algo)!=type(None)) & (type(mu1_algo)!=type(None))),\
+        'T-learner requires mu0_algo and mu1_algo'
+
+        # Isolate necessary hyperparameters
+        mu0_params = params[mu0_algo]['mu_0']['sim'+sim]
+        mu1_params = params[mu1_algo]['mu_1']['sim'+sim]
+        
+        # Intialize base learners
+        mu0_base = base_learners[mu0_algo](**mu0_params)
+        mu1_base = base_learners[mu1_algo](**mu1_params)
+
+        # FIT AND PREDICT
+
+    if metalearner == 'S':
+
+         # Confirm the correct settings were passed
+        assert (type(mu_algo)!=type(None)),\
+        'S-learner requires mu_algo'
+
+        # Isolate necessary hyperparameters
+        mu_params = params[mu_algo]['mu']['sim'+sim]
+        
+        # Intialize base learners
+        mu_base = base_learners[mu_algo](**mu_params)
+
+        # FIT AND PREDICT
+        
+    if metalearner == 'X':
+
+        # Confirm the correct settings were passed
+        assert (((((type(mu0_algo)!=type(None)) & type(mu1_algo)!=type(None))&\
+               (type(tau0_algo)!=type(None) & type(tau1_algo)!=type(None))))&\
+                (type(g_algo)!=type(None))),\ 
+        'X-learner requires mu0_algo, mu1_algo, tau0_algo, tau1_algo, and g_algo'
+        
+        # Isolate necessary hyperparameters
+        mu0_params = params[mu0_algo]['mu_0']['sim'+sim]
+        mu1_params = params[mu1_algo]['mu_1']['sim'+sim]
+        tau0_params = params[tau0_algo]['tau_0']['sim'+sim]
+        tau1_params = params[tau_algo]['tau_1']['sim'+sim]
+        g_params = params[g_algo]['g']['sim'+sim]
+
+        # Intialize base learners
+        mu0_base = base_learners[mu0_algo](**mu0_params)
+        mu1_base = base_learners[mu1_algo](**mu1_params)
+        tau0_base = base_learners[tau0_algo](**tau0_params)
+        tau1_base = base_learners[tau1_algo](**tau1_params)
+        g_base = base_learners[g_algo](**g_params)
+
+       # FIT AND PREDICT
+
     pass
+
+
 
 
 def main(args):
