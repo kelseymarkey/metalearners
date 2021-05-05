@@ -33,10 +33,20 @@ class t_learner:
         self.mu0_base = clone(mu0_base, safe=False)
         self.mu1_base = clone(mu1_base, safe=False)
 
-    def fit(self, X, W, y):
+    def fit(self, X, W, y, sample_weight=None):
+        # Define sample weights for each learner
+        if sample_weight:
+            if isinstance(self.mu0_base, LinearRegression):
+                sw0 = 1 / sample_weight
+            if isinstance(self.mu1_base, LinearRegression):
+                sw1 = sample_weight
+        else:
+            sw0 = None
+            sw1 = None
+        
         # Call fit methods on each base learner
-        self.mu0_base.fit(X[W==0], y[W==0])
-        self.mu1_base.fit(X[W==1], y[W==1])
+        self.mu0_base.fit(X[W==0], y[W==0], sample_weight=sw0)
+        self.mu1_base.fit(X[W==1], y[W==1], sample_weight=sw1)
 
     def predict(self, X):
         y1_preds = self.mu1_base.predict(X)
@@ -64,9 +74,9 @@ class s_learner:
         # Make copies of initialized base learner
         self.mu_base = clone(mu_base, safe=False)
 
-    def fit(self, X_W, y):
+    def fit(self, X_W, y, sample_weight=None):
         # Call fit method
-        self.mu_base.fit(X_W, y)
+        self.mu_base.fit(X_W, y, sample_weight=sample_weight)
 
     def predict(self, X):
         X_W_1 = X.copy(deep=True)
@@ -99,10 +109,10 @@ class x_learner:
         self.tau0_base = clone(tau0_base, safe=False)
         self.tau1_base = clone(tau1_base, safe=False)
 
-    def fit(self, X, W, y):
+    def fit(self, X, W, y, sample_weight=None):
         # Call fit method
-        self.mu0_base.fit(X[W==0], y[W==0])
-        self.mu1_base.fit(X[W==1], y[W==1])
+        self.mu0_base.fit(X[W==0], y[W==0], sample_weight=sample_weight)
+        self.mu1_base.fit(X[W==1], y[W==1], sample_weight=sample_weight)
     
         #Impute y0 for treated group using mu0
         y0_treat=self.mu0_base.predict(X[W==1]).flatten()
@@ -113,10 +123,10 @@ class x_learner:
         imputed_TE_control = y1_control - y[W==0] 
 
         #Fit tau0: CATE estimate fit to the control group
-        self.tau0_base.fit(X[W==0], imputed_TE_control)
+        self.tau0_base.fit(X[W==0], imputed_TE_control, sample_weight=sample_weight)
 
         #Fit tau1: CATE estimate fit to the treatment group
-        self.tau1_base.fit(X[W==1], imputed_TE_treatment)
+        self.tau1_base.fit(X[W==1], imputed_TE_treatment, sample_weight=sample_weight)
 
     def predict(self, X, g):
         '''
@@ -128,7 +138,7 @@ class x_learner:
         return tau_preds.flatten()
 
 
-def fit_get_mse_t(train, test, mu0_base, mu1_base):
+def fit_get_mse_t(train, test, mu0_base, mu1_base, rf_prop=False):
     
     '''
     mu0_base: base learner that has already been initialized
@@ -141,8 +151,24 @@ def fit_get_mse_t(train, test, mu0_base, mu1_base):
     W_train = train['treatment']
     X_test = test.drop(columns=['treatment', 'Y', 'tau', 'pscore'])
 
+    # Calculate sample weights if mu0 or mu1 is IW-weighted linear regression
+    if isinstance(mu0_base, LinearRegression) or isinstance(mu1_base, LinearRegression):
+        #fit and predict g using training data
+        if rf_prop:
+            g_fit = RandomForestClassifier(random_state=0).fit(X=X_train, y=W_train)
+        else:
+            g_fit = LogisticRegression(fit_intercept=True, max_iter=2000, random_state=42).fit(
+                X=X_train, y=W_train)
+        g_pred = g_fit.predict_proba(X_train)[:, 1]
+
+        # Calculate importance weights from g
+        sample_weight = (1 - g_pred) / g_pred
+    
+    else:
+        sample_weight = None
+
     #initialize metalearner
-    T = t_learner(mu0_base=mu0_base, mu1_base=mu1_base)
+    T = t_learner(mu0_base=mu0_base, mu1_base=mu1_base, sample_weight=sample_weight)
     T.fit(X=X_train, W=W_train, y=y_train)
     
     # Predict test-set CATEs
@@ -154,7 +180,7 @@ def fit_get_mse_t(train, test, mu0_base, mu1_base):
     return (mse, export_df)
 
 
-def fit_get_mse_s(train, test, mu_base):
+def fit_get_mse_s(train, test, mu_base, rf_prop=False):
     
     '''
     mu_base: base learner that has already been initialized
@@ -166,12 +192,28 @@ def fit_get_mse_s(train, test, mu_base):
     W_train = train['treatment']
     X_test = test.drop(columns=['treatment', 'Y', 'tau', 'pscore'])
 
+    # Calculate sample weights if mu is IW-weighted linear regression
+    if isinstance(mu_base, LinearRegression):
+        #fit and predict g using training data
+        if rf_prop:
+            g_fit = RandomForestClassifier(random_state=0).fit(X=X_train, y=W_train)
+        else:
+            g_fit = LogisticRegression(fit_intercept=True, max_iter=2000, random_state=42).fit(
+                X=X_train, y=W_train)
+        g_pred = g_fit.predict_proba(X_train)[:, 1]
+
+        # Calculate importance weights from g
+        sample_weight = 1.0 / g_pred
+    
+    else:
+        sample_weight = None
+
     #initialize metalearner
     S = s_learner(mu_base=mu_base)
     
     #fit S-learner
     X_W = pd.concat([X_train, W_train], axis=1)
-    S.fit(X_W=X_W, y=y_train)
+    S.fit(X_W=X_W, y=y_train, sample_weight=sample_weight)
     
     # Predict test-set CATEs
     tau_preds = S.predict(X=X_test)
