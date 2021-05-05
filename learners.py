@@ -111,7 +111,7 @@ class x_learner:
         self.tau0_base = clone(tau0_base, safe=False)
         self.tau1_base = clone(tau1_base, safe=False)
 
-    def fit(self, X, W, y):
+    def fit(self, X, W, y, export_preds):
         # Call fit method
         self.mu0_base.fit(X[W==0], y[W==0])
         self.mu1_base.fit(X[W==1], y[W==1])
@@ -129,6 +129,24 @@ class x_learner:
 
         #Fit tau1: CATE estimate fit to the treatment group
         self.tau1_base.fit(X[W==1], imputed_TE_treatment)
+
+        if export_preds:
+            # Export y0_treat and y1_control predictions on training set
+            y0_treat_df = X[W==1].copy(deep=True)
+            y0_treat_df["y0_treat"] = y0_treat
+            y0_treat_df["y"] = y[W==1]
+            y0_treat_df["W"] = 1
+
+            y1_control_df = X[W==0].copy(deep=True)
+            y1_control_df["y1_control"] = y1_control
+            y1_control_df["y"] = y[W==0]
+            y1_control_df["W"] = 0
+
+            export_df_train = y0_treat_df.append(y1_control_df, ignore_index=True, sort=False)
+        else:
+            export_df_train = None
+        return export_df_train
+
 
     def predict(self, X, g):
         '''
@@ -202,7 +220,7 @@ def fit_get_mse_s(train, test, mu_base, export_preds=False):
     return (mse, export_df)
 
 
-def fit_get_mse_x(train, test, mu0_base, mu1_base, tau0_base, tau1_base, rf_prop=False):
+def fit_get_mse_x(train, test, mu0_base, mu1_base, tau0_base, tau1_base, rf_prop=False, export_preds=False):
     
     '''
     mu0_base: base learner that has already been initialized
@@ -230,17 +248,25 @@ def fit_get_mse_x(train, test, mu0_base, mu1_base, tau0_base, tau1_base, rf_prop
     # initialize metalearner
     X_learner = x_learner(mu0_base=mu0_base, mu1_base=mu1_base, tau0_base=tau0_base, tau1_base=tau1_base)
     # Fit treatment and response estimators mu0 and  mu1
-    X_learner.fit(X=X_train, W=W_train, y=y_train)
-    
+    export_df_train = X_learner.fit(X=X_train, W=W_train, y=y_train, export_preds=export_preds)
+
     # Predict test set CATEs using true and predicted propensities
     tau_preds_gtrue = X_learner.predict(X=X_test, g=g_true)
     tau_preds_gpred = X_learner.predict(X=X_test, g=g_pred)
+
+    if export_preds:
+        export_df = X_test.copy(deep=True)
+        export_df["g_pred"] = g_pred
+        export_df["tau_preds_gtrue"] = tau_preds_gtrue
+        export_df["tau_preds"] = tau_preds_gpred
+    else:
+        export_df = None
     
     # Calculate MSE on test set for X-Learners with true and predicted propensities
     mse_true = np.mean((tau_preds_gtrue - test.tau)**2)
     mse_pred = np.mean((tau_preds_gpred - test.tau)**2)
     
-    return (tau_preds_gtrue, tau_preds_gpred, mse_true, mse_pred)
+    return (mse_true, mse_pred, export_df, export_df_train)
 
 
 def calc_CI(tau_preds):
@@ -301,7 +327,7 @@ def main(args):
                                 mu1_base = RegressionForest(honest=True, random_state=42)
                             # TODO: add logic for if base_learner_dict[mu_0]/[mu_1] is other base learner type
 
-                            if args.CI or args.export_preds:
+                            if args.CI or (args.export_preds and i == 0):
                                 (mse, export_df) = fit_get_mse_t(train, test, mu0_base, mu1_base, export_preds=True)
                             else:
                                 (mse, _) = fit_get_mse_t(train, test, mu0_base, mu1_base, export_preds=False)
@@ -317,7 +343,7 @@ def main(args):
                                 mu_base = RegressionForest(honest=True, random_state=42)
                             
                             # TODO: add logic for if base_learner_dict[mu] is other base learner type
-                            if args.CI or args.export_preds:
+                            if args.CI or (args.export_preds and i == 0):
                                 (mse, export_df) = fit_get_mse_s(train, test, mu_base, export_preds=True)
                             else:
                                 (mse, _) = fit_get_mse_s(train, test, mu_base, export_preds=False)
@@ -345,27 +371,31 @@ def main(args):
                                 tau1_base = RegressionForest(honest=True, random_state=42)
                             
                             # TODO: add logic for if other base learner types
-                            (tau_preds_gtrue, tau_preds_gpred, mse_true, mse_pred) = fit_get_mse_x(
-                                    train, test, mu0_base, mu1_base, tau0_base, tau1_base, args.rf_prop)
+                            if args.CI or (args.export_preds and i == 0):
+                                export_preds = True
+                            else:
+                                export_preds = False
+
+                            (mse_true, mse_pred, export_df, export_df_train) = fit_get_mse_x(train, test,
+                                mu0_base, mu1_base, tau0_base, tau1_base, args.rf_prop, export_preds)
                             X_results_PTrue.append(mse_true)
                             X_results_PPred.append(mse_pred)
 
-                            # TODO: add CI / export_preds logic for X learner
-                            # Need to decide if we want to calc_CI for tau_preds with true g (tau_preds_gtrue)
-                            # or predicted g (tau_preds_gpred) or both. We can add both to export_df but what
-                            # to pass to tau_preds in calc_CI?
-
 
                     if args.CI:
+                        # For X learner tau_preds column is tau_preds_gpred (with predicted g)
                         calc_CI(tau_preds=export_df.tau_preds)
 
 
-                    if args.export_preds and i == 0 and train_size == 300000 and metalearner != 'X':
+                    if args.export_preds and i == 0 and train_size == 300000:
                         # Export predictions for first sample if export_preds flag. Only for largest sample size
-                        # TODO: Implement for metalearner == X
                         export_dir = os.path.join(base_repo_dir, 'data', 'preds')
                         if not os.path.exists(export_dir):
                             os.makedirs(export_dir)
+                        if metalearner == 'X':
+                            # X learner has an extra file to export with Y0/Y1 preds on train
+                            filename_train_preds = sim + '_X_' + str(train_size) + '_train_preds.parquet'
+                            export_df_train.to_parquet(os.path.join(export_dir, filename_train_preds))
                         filename = sim + '_' + metalearner + '_' + str(train_size) + '.parquet'
                         export_df.to_parquet(os.path.join(export_dir, filename))
 
