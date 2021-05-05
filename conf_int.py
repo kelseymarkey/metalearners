@@ -8,7 +8,7 @@ Alene Rhea, May 2021
 import argparse, os, pathlib, json
 import numpy as np
 import pandas as pd
-# import [FUNCNAMES] from learners.py
+from learners.py import fit_predict
 
 def main(args):
 
@@ -35,7 +35,7 @@ def main(args):
     train_treat = train[train.treatment==1]
     train_ctrl = train[train.treatment==0]
 
-    # Train B other versions of the learner
+    # Train B versions of the learner
     # CAN WE PARALLELIZE?
     for b in range(args.B):
         b_treat = train_treat.sample(frac=1, replace=True, random_state=b)

@@ -269,10 +269,22 @@ def fit_get_mse_x(train, test, mu0_base, mu1_base, tau0_base, tau1_base, rf_prop
     return (mse_true, mse_pred, export_df, export_df_train)
 
 
-def calc_CI(tau_preds):
+def fit_predict():
 
     '''
-    Place holder for confidence interval calculations.
+    To be called by conf_int.py
+
+    Functionized and generalized method 
+    to initialize base learners and train metalearner.
+
+    Return predictions on test set
+    No need to calculate MSE
+
+    Could be wrapper around general intialize / train func(s);
+    with test set prediction added on at the end
+
+    Similar to lines 323 - 403
+    
     '''
     pass
 
@@ -311,11 +323,10 @@ def main(args):
                 samp_test_name = 'samp' + str(i+1) + '_test.parquet'
                 train = pd.read_parquet(base_repo_dir / 'data' / str(train_size) / sim / samp_train_name)
                 test = pd.read_parquet(base_repo_dir / 'data' / str(train_size) / sim / samp_test_name)
-                
+
                 for metalearner in meta_base_dict.keys():
-                    
-                    if metalearner == 'T':
-                        for base_learner_dict in meta_base_dict[metalearner]:
+                    for base_learner_dict in meta_base_dict[metalearner]:
+                        if metalearner == 'T':
                             if base_learner_dict['mu_0'] == 'rf':
                                 mu0_hyperparams = rf_params[metalearner]['mu_0'][sim]
                                 # uncomment out all of these lines once hyperparameter jsons updated from tuning
@@ -334,8 +345,7 @@ def main(args):
                             T_results.append(mse)
 
 
-                    if metalearner == 'S':
-                        for base_learner_dict in meta_base_dict[metalearner]:
+                        if metalearner == 'S':
                             if base_learner_dict['mu'] == 'rf':
                                 mu_hyperparams = rf_params[metalearner]['mu'][sim]
                                 # uncomment out all of these lines once hyperparameter jsons updated from tuning
@@ -350,8 +360,7 @@ def main(args):
                             S_results.append(mse)
 
                             
-                    if metalearner == 'X':
-                        for base_learner_dict in meta_base_dict[metalearner]:
+                        if metalearner == 'X':
                             if base_learner_dict['mu_0'] == 'rf':
                                 mu0_hyperparams = rf_params[metalearner]['mu_0'][sim]
                                 # uncomment out all of these lines once hyperparameter jsons updated from tuning
@@ -371,6 +380,8 @@ def main(args):
                                 tau1_base = RegressionForest(honest=True, random_state=42)
                             
                             # TODO: add logic for if other base learner types
+
+                            # Why only for X-learner?
                             if args.CI or (args.export_preds and i == 0):
                                 export_preds = True
                             else:
@@ -381,23 +392,21 @@ def main(args):
                             X_results_PTrue.append(mse_true)
                             X_results_PPred.append(mse_pred)
 
+                        if args.CI:
+                            # For X learner tau_preds column is tau_preds_gpred (with predicted g)
+                            calc_CI(tau_preds=export_df.tau_preds)
 
-                    if args.CI:
-                        # For X learner tau_preds column is tau_preds_gpred (with predicted g)
-                        calc_CI(tau_preds=export_df.tau_preds)
-
-
-                    if args.export_preds and i == 0 and train_size == 300000:
-                        # Export predictions for first sample if export_preds flag. Only for largest sample size
-                        export_dir = os.path.join(base_repo_dir, 'data', 'preds')
-                        if not os.path.exists(export_dir):
-                            os.makedirs(export_dir)
-                        if metalearner == 'X':
-                            # X learner has an extra file to export with Y0/Y1 preds on train
-                            filename_train_preds = sim + '_X_' + str(train_size) + '_train_preds.parquet'
-                            export_df_train.to_parquet(os.path.join(export_dir, filename_train_preds))
-                        filename = sim + '_' + metalearner + '_' + str(train_size) + '.parquet'
-                        export_df.to_parquet(os.path.join(export_dir, filename))
+                        if args.export_preds and i == 0 and train_size == 300000:
+                            # Export predictions for first sample if export_preds flag. Only for largest sample size
+                            export_dir = os.path.join(base_repo_dir, 'data', 'preds')
+                            if not os.path.exists(export_dir):
+                                os.makedirs(export_dir)
+                            if metalearner == 'X':
+                                # X learner has an extra file to export with Y0/Y1 preds on train
+                                filename_train_preds = sim + '_X_' + str(train_size) + '_train_preds.parquet'
+                                export_df_train.to_parquet(os.path.join(export_dir, filename_train_preds))
+                            filename = sim + '_' + metalearner + '_' + str(train_size) + '.parquet'
+                            export_df.to_parquet(os.path.join(export_dir, filename))
 
 
             rows.append([sim, train_size, np.mean(T_results), np.mean(S_results),
