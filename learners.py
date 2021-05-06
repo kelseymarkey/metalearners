@@ -269,14 +269,6 @@ def fit_get_mse_x(train, test, mu0_base, mu1_base, tau0_base, tau1_base, rf_prop
     return (mse_true, mse_pred, export_df, export_df_train)
 
 
-def calc_CI(tau_preds):
-
-    '''
-    Place holder for confidence interval calculations.
-    '''
-    pass
-
-
 def main(args):
     
     # Set root directory
@@ -327,7 +319,7 @@ def main(args):
                                 mu1_base = RegressionForest(honest=True, random_state=42)
                             # TODO: add logic for if base_learner_dict[mu_0]/[mu_1] is other base learner type
 
-                            if args.CI or (args.export_preds and i == 0):
+                            if args.export_preds and i == 0:
                                 (mse, export_df) = fit_get_mse_t(train, test, mu0_base, mu1_base, export_preds=True)
                             else:
                                 (mse, _) = fit_get_mse_t(train, test, mu0_base, mu1_base, export_preds=False)
@@ -343,7 +335,7 @@ def main(args):
                                 mu_base = RegressionForest(honest=True, random_state=42)
                             
                             # TODO: add logic for if base_learner_dict[mu] is other base learner type
-                            if args.CI or (args.export_preds and i == 0):
+                            if args.export_preds and i == 0:
                                 (mse, export_df) = fit_get_mse_s(train, test, mu_base, export_preds=True)
                             else:
                                 (mse, _) = fit_get_mse_s(train, test, mu_base, export_preds=False)
@@ -371,7 +363,7 @@ def main(args):
                                 tau1_base = RegressionForest(honest=True, random_state=42)
                             
                             # TODO: add logic for if other base learner types
-                            if args.CI or (args.export_preds and i == 0):
+                            if args.export_preds and i == 0:
                                 export_preds = True
                             else:
                                 export_preds = False
@@ -380,11 +372,6 @@ def main(args):
                                 mu0_base, mu1_base, tau0_base, tau1_base, args.rf_prop, export_preds)
                             X_results_PTrue.append(mse_true)
                             X_results_PPred.append(mse_pred)
-
-
-                    if args.CI:
-                        # For X learner tau_preds column is tau_preds_gpred (with predicted g)
-                        calc_CI(tau_preds=export_df.tau_preds)
 
 
                     if args.export_preds and i == 0 and train_size == 300000:
@@ -425,8 +412,6 @@ if __name__ == "__main__":
                         help='Number of samples to read in from data directory')
     parser.add_argument("--training_sizes", nargs='+', type=int, default=[5000, 10000, 20000, 100000, 300000],
                         help='Training set sizes to read in from data directory')
-    parser.add_argument("--CI", action='store_true',
-                        help='Boolean flag indicating that confidence intervals should be calculated.')
     parser.add_argument("--export_preds", action='store_true',
                         help='Boolean flag indicating that predictions (e.g. y0_preds, y1_preds for T learner) ' +
                         'should be exported.')
