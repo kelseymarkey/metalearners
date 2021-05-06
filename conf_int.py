@@ -38,7 +38,7 @@ def main(args):
     # Read train and test from sample 1
     # Note: Using data repo structure with no train_size directory level
     train_filename = 'samp1_train.parquet'
-    test_filename = 'samp1_train.parquet'
+    test_filename = 'samp1_test.parquet'
     train_full = pd.read_parquet(base_repo_dir / 'data' / args.sim / train_filename)
     test = pd.read_parquet(base_repo_dir / 'data' / args.sim / test_filename)
 
