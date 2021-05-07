@@ -5,9 +5,11 @@ Estimating and evaluating bootstrap confidence intervals on simulated data
 Alene Rhea, May 2021
 
 Usage example: 
-python3 conf_int.py --sim A --outfile test --train_size 5000\
+python3 conf_int.py --sim A --outfile test --train_size 5000 \
 --config_file ci_t_rf.json --hyperparams_file rf_t.json --B 5
 
+To install varname:
+pip install -U varname
 '''
 
 import argparse, os, pathlib, json
@@ -15,9 +17,55 @@ import numpy as np
 import pandas as pd
 from scipy.stats import norm
 from functools import partial
+from varname import nameof
 from learners import fit_predict
-import configClass
-from utils import strat_sample, config_from_json
+import utils.configClass
+from utils.utils import strat_sample, config_from_json
+
+def get_ci (boot_preds, alpha, ci_type, 
+            train=None, test=None, config=None):
+
+    # Get Z-score for given alpha value
+    z = norm.ppf(1-alpha/2)
+    
+    # Equivalent to SI algorithm 6
+    if ci_type=='order1norm':
+        
+        # train another model on the original train set
+        center_preds = fit_predict(train=train, test=test, 
+                                   config=config)
+
+        # get row-wise SD of bootstrap preds on test set
+        sigma = np.std(boot_preds, axis=1)
+
+        # get radius of CI
+        radius = z*sigma
+
+        # CI is symmetric around preds on original training set
+        lower = center_preds - radius
+        upper = center_preds + radius
+
+    # Equivalent to SI algorithm 7
+    elif ci_type=='smooth':
+
+        # center CI around mean of bootstrap preds
+        center_preds = np.mean(boot_preds, axis=1)
+
+        # Use covariance formula from SI 7 to get spread of CI
+        lower = None
+        upper = None
+    
+    elif ci_type=='quantile':
+        # alpha/2 and 1-alpha/2 quantiles
+        lower = None
+        upper = None
+
+    elif ci_type=='t':
+        # https://mikelove.wordpress.com/2010/02/15/bootstrap-t/
+        lower = None
+        upper = None
+
+    return (lower, upper)
 
 def main(args):
 
@@ -39,16 +87,18 @@ def main(args):
 
     # create config object
     # Needs to be updated for RandomForestClassifier params (for g)
-    this_config = config_from_json(meta=meta, sim=args.sim, 
-                                   meta_base_dict=meta_base_dict, 
-                                   hyperparams=rf_params)
+    config = config_from_json(meta=meta, sim=args.sim, 
+                                meta_base_dict=meta_base_dict, 
+                                hyperparams=rf_params)
 
     # Read train and test from sample 1
     # Note: Using data repo structure with no train_size directory level
     train_filename = 'samp1_train.parquet'
     test_filename = 'samp1_test.parquet'
-    train_full = pd.read_parquet(base_repo_dir / 'data' / 'sim{}'.format(args.sim) / train_filename)
-    test = pd.read_parquet(base_repo_dir / 'data' / 'sim{}'.format(args.sim) / test_filename)
+    train_full = pd.read_parquet(base_repo_dir/'data'/\
+                                 'sim{}'.format(args.sim)/train_filename)
+    test = pd.read_parquet(base_repo_dir/'data'/\
+                                 'sim{}'.format(args.sim)/test_filename)
 
     # Sample training set from super-set of 300K
     if args.train_size < len(train_full):
@@ -68,66 +118,43 @@ def main(args):
 
         # train model on bootstrapped df
         these_preds = fit_predict(train=boot_df, test=test,
-                                  config=this_config) 
+                                  config=config) 
 
         # If parallelized, should write each array to file?
         # Or collect results with fancy array method?
         all_preds[:,b] = these_preds
 
+        print('{}/{} bootstrap samples complete'.format(b+1, args.B))
+
     # Save all_preds in case we want to do more calculation later
     results = pd.DataFrame(all_preds, 
-                columns=['b{}'.format(x) for x in np.arange(args.B)])
+                columns=['b{}_tau'.format(x+1) for x in np.arange(args.B)])
 
     # Save true tau
     results['true_tau'] = test['tau']
 
-    # Get signif level for given alpha value
-    # (Uses normal distribution)
-    signif_level = norm.ppf(1-args.alpha/2)
+    # Array of string-names of conf interval types
+    ci_types = np.array([nameof(args.order1norm), nameof(args.smooth), 
+                nameof(args.quantile), nameof(args.t)])
 
-    if args.order1norm:
-
-        # train another model on the original train
-        norm_center_preds = fit_predict(train=train, test=test, 
-                                        config=this_config)
-
-        #get row-wise SD of test set preds
-        norm_sigma = np.std(all_preds, axis=1)
-
-        # CI is symmetric around preds on original training set
-        results['order1norm_lower'] = norm_center_preds \
-                                            - signif_level*norm_sigma
-        results['order1norm_upper'] = norm_center_preds \
-                                            + signif_level*norm_sigma
-
-    if args.smooth:
-
-        # center CI around mean of bootstrap preds
-        smooth_center_preds = np.mean(all_preds, axis=1)
-
-        # Use covariance formula from SI 7 to get spread of CI
-
-        #results['smooth_lower'] = smooth_center_preds - ...
-        #results['smooth_upper'] = smooth_center_preds + ...
-
-    if args.quantile:
-        # alpha/2 and 1-alpha/2 quantiles
-        # same as percentile?
-        pass
-    if args.t:
-        # https://mikelove.wordpress.com/2010/02/15/bootstrap-t/
-        pass
-
-    # List of string-names for the CI types calculated
-    ci_types = [x.split('_')[0] for x in results.columns\
-                    if 'lower' in str(x)]
+    # Include only those passed as true
+    ci_types = ci_types[[args.order1norm, args.smooth, 
+                         args.quantile, args.t]]
 
     # Initialize dataframe to hold simple coverage results
     coverage = pd.DataFrame(columns=['coverage', 'mean_length'],
                             index=ci_types)
 
     for c in ci_types:
-        # Add Boolean coverage column for each CI type
+
+        # Get CI lower and upper bounds
+        lower, upper = get_ci(boot_preds = all_preds, alpha =args.alpha, 
+                              ci_type = c, 
+                              train=train, test=test, config=config) # for order1norm
+        results[c+'_lower'] = lower
+        results[c+'_upper'] = upper
+
+        # Add Boolean coverage column
         results[c+'_cover'] = ( (results[c+'_lower'] <= results['true_tau']) \
                                &(results[c+'_upper'] >= results['true_tau']))
         
@@ -141,13 +168,10 @@ def main(args):
         coverage.loc[c, 'mean_length'] = np.mean(results[c+'_length'])
 
     # Save big results file (including all predicitions)
-    results.to_csv('results/ci_results_'+args.outfile+'_full.csv')
+    results.to_csv('results/ci/full/'+args.outfile+'_full.csv')
 
     # Save condensed results file
-    coverage.to_csv('results/ci_results_'+args.outfile+'_simple.csv')
-
-    pass
-
+    coverage.to_csv('results/ci/simple/'+args.outfile+'_simple.csv')
     
 
 if __name__ == "__main__":
@@ -155,7 +179,7 @@ if __name__ == "__main__":
     #Command line arguments
     parser = argparse.ArgumentParser()
 
-    # Required argument
+    # Required arguments
     parser.add_argument("--sim", type=str, 
                         help='Which simulation to calculate CIs on')
     parser.add_argument("--outfile", type=str, 

@@ -87,10 +87,10 @@ def config_from_json(meta, sim, meta_base_dict, hyperparams):
                         'X': Xconfig}
 
     # intialize config object with correct item from meta_base_dict
-    this_config = meta_config_dict[meta](**meta_base_dict[meta])
+    config = meta_config_dict[meta](**meta_base_dict[meta])
 
     # set hyperparameters on config object
-    this_config.set_all_hyperparams(hp_dict=hyperparams, sim=sim)
+    config.set_all_hyperparams(hp_dict=hyperparams, sim=sim)
 
     # return ready-to-use config object
-    return this_config
+    return config

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
-class config:
+class configuration:
     def __init__(self, metalearner):
         self.metalearner = metalearner
 
-class Tconfig(config):
+class Tconfig(configuration):
     def __init__(self, mu_0, mu_1):
         self.metalearner = 'T'
         self.mu_0 = baseLearner(mu_0,'mu_0')
@@ -14,7 +14,7 @@ class Tconfig(config):
         self.mu_0.set_hyperparams(hp_dict, sim)
         self.mu_1.set_hyperparams(hp_dict, sim)
 
-class Sconfig(config):
+class Sconfig(configuration):
     def __init__(self, mu):
         self.metalearner = 'S'
         self.mu = baseLearner(mu,'mu')
@@ -23,7 +23,7 @@ class Sconfig(config):
         self.mu.set_hyperparams(hp_dict, sim)
 
 
-class Xconfig(config):
+class Xconfig(configuration):
     def __init__(self, mu_0, mu_1,
                  tau_0, tau_1, g):
         self.metalearner = 'X'

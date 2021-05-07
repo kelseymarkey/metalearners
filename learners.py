@@ -11,8 +11,8 @@ import json
 from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.ensemble import RandomForestClassifier
 from functools import partial
-from configClass import config, Tconfig, Sconfig, Xconfig, baseLearner
-from utils import strat_sample, split_Xy_train_test
+import utils.configClass
+from utils.utils import strat_sample, split_Xy_train_test
 
 '''
 Small run usage example: python learners.py --samples 3 --training_sizes 5000 --base_learner_filename base_learners_rf.json
