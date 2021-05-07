@@ -294,8 +294,8 @@ def main(args):
             print('     Starting sample'+ str(i+1))
             samp_train_name = 'samp' + str(i+1) + '_train.parquet'
             samp_test_name = 'samp' + str(i+1) + '_test.parquet'
-            full_train = pd.read_parquet(base_repo_dir / 'data' / str(300000) / sim / samp_train_name)
-            test = pd.read_parquet(base_repo_dir / 'data' / str(300000) / sim / samp_test_name)
+            full_train = pd.read_parquet(base_repo_dir / 'data' / sim / samp_train_name)
+            test = pd.read_parquet(base_repo_dir / 'data' / sim / samp_test_name)
             for train_size in args.training_sizes:
                 print('         Training set size:', train_size)
                 if train_size != 300000:
@@ -387,7 +387,7 @@ def main(args):
     # Save results
     substring = re.search('base_learners_(.*?).json', args.base_learner_filename).group(1)
     filename = 'results_' + substring + '.csv'
-    results.to_csv(filename, index=False)
+    results.to_csv(os.path.join('results', filename), index=False)
 
     return
 

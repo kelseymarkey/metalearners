@@ -145,12 +145,12 @@ sim_test <-cbind(sim$feat_te,
                   tau = sim$tau_te)
 
 # save train and test dataframes to parquet
-file_train = here('data',  args$n_train, paste('sim', args$sim, sep=''),
+file_train = here('data', paste('sim', args$sim, sep=''),
                   paste('samp', args$samp, '_train.parquet', sep='')
                   )
 write_parquet(sim_train, file_train)
 
-file_test = here('data', args$n_train, paste('sim', args$sim, sep=''),
+file_test = here('data', paste('sim', args$sim, sep=''),
             paste('samp', args$samp, '_test.parquet', sep='')
             )
 write_parquet(sim_test, file_test)
