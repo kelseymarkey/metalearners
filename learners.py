@@ -10,6 +10,7 @@ import re
 import json
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
+from utils import strat_sample
 
 '''
 Small run usage example: python learners.py --samples 3 --training_sizes 5000 --base_learner_filename base_learners_rf.json
@@ -299,7 +300,7 @@ def main(args):
             for train_size in args.training_sizes:
                 print('         Training set size:', train_size)
                 if train_size != 300000:
-                    train = full_train.sample(train_size, replace=False, random_state=42)
+                    train = strat_sample(full_train, n=train_size, replace=False, seed=42)
                 else: 
                     train = full_train
                 
