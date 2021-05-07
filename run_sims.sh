@@ -1,12 +1,13 @@
 #!/bin/bash
 
 # This script generates a training and test dataset for each
-# training set size in n_train. Test set sizes are all 100,000 rows.
-# 30 samples of each simulation (A, B, C, D, E, and F) 
+# simulation in SIMS. Training set sizes are all 300,000 rows,
+# test set sizes are all 100,000 rows. 30 samples of each
+# simulation (A, B, C, D, E, and F) are created.
 
 n_train=300000
 n_test=100000
-n_samples=2
+n_samples=30
 
 
 # Array of simulations to generate

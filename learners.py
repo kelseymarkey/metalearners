@@ -387,7 +387,7 @@ def main(args):
     # Save results
     substring = re.search('base_learners_(.*?).json', args.base_learner_filename).group(1)
     filename = 'results_' + substring + '.csv'
-    results.to_csv(filename, index=False)
+    results.to_csv(os.path.join('results', filename), index=False)
 
     return
 
