@@ -16,8 +16,8 @@ import pandas as pd
 from scipy.stats import norm
 from functools import partial
 from learners import fit_predict
-from configClass import config, Tconfig, Sconfig, Xconfig, baseLearner
-from utils import strat_sample
+import configClass
+from utils import strat_sample, config_from_json
 
 def main(args):
 
@@ -25,24 +25,23 @@ def main(args):
     base_repo_dir = pathlib.Path(os.path.realpath(__file__)).parents[0]
 
     # Read learner config from JSON
-    learner_config_dict = json.load(open(base_repo_dir /\
+    meta_base_dict = json.load(open(base_repo_dir /\
                                     'configurations/base_learners'/\
                                      args.config_file))
 
-    meta = list(learner_config_dict.keys())[0]
+    # Get name of metaleaner (should only be 1 in file)
+    meta = list(meta_base_dict.keys())[0]
 
-    meta_config_dict = {'T': Tconfig,
-                        'S':  Sconfig,
-                        'X': Xconfig}
-
-    this_config = meta_config_dict[meta](**learner_config_dict[meta])
-
-    # Read hyperparameters files
+    # Read hyperparameters file
     rf_params = json.load(open(base_repo_dir / 'configurations' /\
                                                 'hyperparameters' /\
                                                 args.hyperparams_file))
 
-    this_config.set_all_hyperparams(hp_dict=rf_params, sim=args.sim)
+    # create config object
+    # Needs to be updated for RandomForestClassifier params (for g)
+    this_config = config_from_json(meta=meta, sim=args.sim, 
+                                   meta_base_dict=meta_base_dict, 
+                                   hyperparams=rf_params)
 
     # Read train and test from sample 1
     # Note: Using data repo structure with no train_size directory level
