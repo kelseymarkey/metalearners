@@ -9,7 +9,10 @@ Alene Rhea, May 2021
 
 import pandas as pd
 import numpy as np
-from configClass import Tconfig, Sconfig, Xconfig
+try:
+    from configClass import Tconfig, Sconfig, Xconfig
+except:
+    from utils.configClass import Tconfig, Sconfig, Xconfig
 
 def strat_sample(df, n, replace=False, seed=42):
     '''
