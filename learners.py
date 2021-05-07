@@ -12,6 +12,7 @@ from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.ensemble import RandomForestClassifier
 from functools import partial
 from configClass import config, Tconfig, Sconfig, Xconfig, baseLearner
+from utils import strat_sample, split_Xy_train_test
 
 '''
 Small run usage example: python learners.py --samples 3 --training_sizes 5000 --base_learner_filename base_learners_rf.json
@@ -269,20 +270,6 @@ def fit_get_mse_x(train, test, mu0_base, mu1_base, tau0_base, tau1_base, rf_prop
     mse_pred = np.mean((tau_preds_gpred - test.tau)**2)
     
     return (mse_true, mse_pred, export_df, export_df_train)
-
-def split_Xy_train_test(train, test, g_true=False):
-
-    X_train = train.drop(columns=['treatment', 'Y', 'tau', 'pscore'])
-    y_train = train['Y']
-    W_train = train['treatment']
-    X_test = test.drop(columns=['treatment', 'Y', 'tau', 'pscore'])
-
-    if g_true:
-        g_true = test['pscore'].to_numpy()
-        return (X_train, y_train, W_train, X_test, g_true)
-
-    return (X_train, y_train, W_train, X_test)
-
 
 def fit_predict(train, test, config):
 

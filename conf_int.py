@@ -17,6 +17,7 @@ from scipy.stats import norm
 from functools import partial
 from learners import fit_predict
 from configClass import config, Tconfig, Sconfig, Xconfig, baseLearner
+from utils import strat_sample
 
 def main(args):
 
@@ -52,14 +53,9 @@ def main(args):
 
     # Sample training set from super-set of 300K
     if args.train_size < len(train_full):
-        train = train_full.sample(n=args.train_size, replace=False, 
-                                  random_state=args.train_seed)
+        train = strat_sample(train_full, n=args.train_size)
     else:
         train = train_full
-
-    # Isolate treatment and control groups from the training set
-    train_treat = train[train.treatment==1]
-    train_ctrl = train[train.treatment==0]
 
     # Initialize array to hold all bootstrap predictions
     all_preds = np.zeros((len(test), args.B))
@@ -68,10 +64,8 @@ def main(args):
     # CAN WE PARALLELIZE?
     for b in range(args.B):
 
-        # Sample treatment and control seperately and then combine
-        b_treat = train_treat.sample(frac=1, replace=True, random_state=b)
-        b_ctrl = train_ctrl.sample(frac=1, replace=True, random_state=b)
-        boot_df = pd.concat([b_treat, b_ctrl])
+        # Sample new bootstrap df (with replacement)
+        boot_df = strat_sample(train, n=len(train), replace=True, seed=b)
 
         # train model on bootstrapped df
         these_preds = fit_predict(train=boot_df, test=test,
