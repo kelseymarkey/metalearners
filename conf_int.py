@@ -3,44 +3,52 @@
 '''
 Estimating and evaluating bootstrap confidence intervals on simulated data
 Alene Rhea, May 2021
+
+Usage example: 
+python3 conf_int.py --sim A --outfile test --train_size 5000\
+--config_file ci_t_rf.json --hyperparams_file rf_t.json --B 5
+
 '''
 
 import argparse, os, pathlib, json
 import numpy as np
 import pandas as pd
 from scipy.stats import norm
-#from learners.py import fit_predict
+from functools import partial
+from learners import fit_predict
+from configClass import config, Tconfig, Sconfig, Xconfig, baseLearner
 
 def main(args):
-
-    #fake test set & args, to test functionality
-    # test = pd.DataFrame({'tau': np.random.random(10000)})
-    # class arg:
-    #     def __init__(self, B, sim, alpha, outfile):
-    #         self.B = B
-    #         self.sim = sim
-    #         self.alpha = alpha
-    #         self.order1norm = True
-    #         self.smooth = False
-    #         self.quantile = False
-    #         self.t = False
-    #         self.outfile = outfile
-    # args = arg(3, 'A', 0.05, 'testing')
 
     # Set root directory
     base_repo_dir = pathlib.Path(os.path.realpath(__file__)).parents[0]
 
-    # Read config from JSON (?)
-    learner_dict = json.load(args.config_file)
+    # Read learner config from JSON
+    learner_config_dict = json.load(open(base_repo_dir /\
+                                    'configurations/base_learners'/\
+                                     args.config_file))
 
-    # Read hyperparams?
+    meta = list(learner_config_dict.keys())[0]
+
+    meta_config_dict = {'T': Tconfig,
+                        'S':  Sconfig,
+                        'X': Xconfig}
+
+    this_config = meta_config_dict[meta](**learner_config_dict[meta])
+
+    # Read hyperparameters files
+    rf_params = json.load(open(base_repo_dir / 'configurations' /\
+                                                'hyperparameters' /\
+                                                args.hyperparams_file))
+
+    this_config.set_all_hyperparams(hp_dict=rf_params, sim=args.sim)
 
     # Read train and test from sample 1
     # Note: Using data repo structure with no train_size directory level
     train_filename = 'samp1_train.parquet'
     test_filename = 'samp1_test.parquet'
-    train_full = pd.read_parquet(base_repo_dir / 'data' / args.sim / train_filename)
-    test = pd.read_parquet(base_repo_dir / 'data' / args.sim / test_filename)
+    train_full = pd.read_parquet(base_repo_dir / 'data' / 'sim{}'.format(args.sim) / train_filename)
+    test = pd.read_parquet(base_repo_dir / 'data' / 'sim{}'.format(args.sim) / test_filename)
 
     # Sample training set from super-set of 300K
     if args.train_size < len(train_full):
@@ -66,7 +74,8 @@ def main(args):
         boot_df = pd.concat([b_treat, b_ctrl])
 
         # train model on bootstrapped df
-        # these_preds = fit_predict(boot_df) 
+        these_preds = fit_predict(train=boot_df, test=test,
+                                  config=this_config) 
 
         # generate fake preds to test CI calculation
         # these_preds = np.random.random(size=len(test))
@@ -89,7 +98,8 @@ def main(args):
     if args.order1norm:
 
         # train another model on the original train
-        # norm_center_preds = fit_predict(train)
+        norm_center_preds = fit_predict(train=train, test=test, 
+                                        config=this_config)
 
         # generate fake preds to test CI calculation
         # norm_center_preds = np.random.random(size=len(test))
@@ -113,7 +123,7 @@ def main(args):
         #results['smooth_lower'] = smooth_center_preds - ...
         #results['smooth_upper'] = smooth_center_preds + ...
 
-    if args.quantiles:
+    if args.quantile:
         # alpha/2 and 1-alpha/2 quantiles
         # same as percentile?
         pass
@@ -144,10 +154,10 @@ def main(args):
         coverage.loc[c, 'mean_length'] = np.mean(results[c+'_length'])
 
     # Save big results file (including all predicitions)
-    results.to_csv('ci_results_'+args.outfile_name+'_full.csv')
+    results.to_csv('results/ci_results_'+args.outfile+'_full.csv')
 
     # Save condensed results file
-    coverage.to_csv('ci_results_'+args.outfile_name+'_simple.csv')
+    coverage.to_csv('results/ci_results_'+args.outfile+'_simple.csv')
 
     pass
 
@@ -163,7 +173,11 @@ if __name__ == "__main__":
                         help='Which simulation to calculate CIs on')
     parser.add_argument("--outfile", type=str, 
                         help='String to insert into outfile names. Should uniquely identify the type of learner & config being tested, as well as the simulation.')
-    
+    parser.add_argument("--config_file", type=str,
+                        help="Filename (with extension) of JSON file containing base learner set-up. Must be stored in configurations/base_learners")
+    parser.add_argument("--hyperparams_file", type=str,
+                        help="Filename (with extension) of JSON file containing hyperparameters for base-learners. Must be stored in configurations/hyperparameters")
+
     # Optional arguments
     parser.add_argument("--train_seed", type=int, default=42,
                         help='Seed to use to sample training set from 300K superset')
@@ -182,9 +196,6 @@ if __name__ == "__main__":
     parser.add_argument("--t", action='store_true',
                         help="Boolean flag to construct CIs with the \"t\" method.")
     
-    # Add config file
-    # Add hyperparams file
-
     args = parser.parse_args()
 
     # Calculate CIs via order1norm if no other methods selected

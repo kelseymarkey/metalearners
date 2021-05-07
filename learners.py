@@ -8,9 +8,10 @@ import numpy as np
 import pandas as pd
 import re
 import json
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.ensemble import RandomForestClassifier
 from functools import partial
+from configClass import config, Tconfig, Sconfig, Xconfig, baseLearner
 
 '''
 Small run usage example: python learners.py --samples 3 --training_sizes 5000 --base_learner_filename base_learners_rf.json
@@ -269,11 +270,38 @@ def fit_get_mse_x(train, test, mu0_base, mu1_base, tau0_base, tau1_base, rf_prop
     
     return (mse_true, mse_pred, export_df, export_df_train)
 
+def split_Xy_train_test(train, test, g_true=False):
 
-def fit_predict(metalearner, sim,
-                mu_algo=None, 
-                mu0_algo=None, mu1_algo=None,
-                tau0_algo=None, tau1_algo=None, g_algo=None):
+    X_train = train.drop(columns=['treatment', 'Y', 'tau', 'pscore'])
+    y_train = train['Y']
+    W_train = train['treatment']
+    X_test = test.drop(columns=['treatment', 'Y', 'tau', 'pscore'])
+
+    if g_true:
+        g_true = test['pscore'].to_numpy()
+        return (X_train, y_train, W_train, X_test, g_true)
+
+    return (X_train, y_train, W_train, X_test)
+
+
+def fit_predict(train, test, config):
+
+    #data preprocessing
+    X_train, y_train, W_train, X_test = split_Xy_train_test(train, test)
+
+    if (config.metalearner=='T') or (config.metalearner=='S'):
+        fitted = fit_metalearner(X_train, y_train, W_train, X_test, config)
+        tau_preds = fitted.predict(X_test, export_preds=False)
+
+    elif config.metalearner=='X':
+        # Predict test set CATEs using predicted propensities
+        fitted, g_pred = fit_metalearner(X_train, y_train, W_train,
+                                         X_test, config)
+        tau_preds = fitted.predict(X=X_test, g=g_pred)
+    return tau_preds
+    
+
+def fit_metalearner(X_train, y_train, W_train, X_test, config):
 
     '''
     To be called by conf_int.py
@@ -287,81 +315,75 @@ def fit_predict(metalearner, sim,
     Could be wrapper around general intialize / train func(s);
     with test set prediction added on at the end    
     '''
-    
+
     # dictionary to match algo code to partial init call
+    # update LR item to match Tamar's IW branch
     base_learners = {'rf': partial(RegressionForest, 
-                                   honest=True, random_state=42)}
-
-    # List of all algo codes to be used
-    algos = set([mu_algo, mu0_algo, mu1_algo, tau0_algo, tau1_algo, g_algo])
-
-    # Read in necessary hyperparameter settings
-    # FIX TO ONLY READ IN RF bc no params for LR
-    params = {}
-    for algo in algos:
-        if type(algo)==type(None):
-            continue
-        params[algo] = json.load(open(base_repo_dir / 'configurations' /\
-                                'hyperparameters' / '{}_{}.json'\
-                                    .format(algo, metalearner)))
-
-    if metalearner == 'T':
-        
-        # Confirm the correct settings were passed
-        assert ((type(mu0_algo)!=type(None)) & (type(mu1_algo)!=type(None))),\
-        'T-learner requires mu0_algo and mu1_algo'
-
-        # Isolate necessary hyperparameters
-        mu0_params = params[mu0_algo]['mu_0']['sim'+sim]
-        mu1_params = params[mu1_algo]['mu_1']['sim'+sim]
-        
-        # Intialize base learners
-        mu0_base = base_learners[mu0_algo](**mu0_params)
-        mu1_base = base_learners[mu1_algo](**mu1_params)
-
-        # FIT AND PREDICT
-
-    if metalearner == 'S':
-
-         # Confirm the correct settings were passed
-        assert (type(mu_algo)!=type(None)),\
-        'S-learner requires mu_algo'
-
-        # Isolate necessary hyperparameters
-        mu_params = params[mu_algo]['mu']['sim'+sim]
-        
-        # Intialize base learners
-        mu_base = base_learners[mu_algo](**mu_params)
-
-        # FIT AND PREDICT
-        
-    if metalearner == 'X':
-
-        # Confirm the correct settings were passed
-        assert (((((type(mu0_algo)!=type(None)) & type(mu1_algo)!=type(None))&\
-               (type(tau0_algo)!=type(None) & type(tau1_algo)!=type(None))))&\
-                (type(g_algo)!=type(None))),\
-        'X-learner requires mu0_algo, mu1_algo, tau0_algo, tau1_algo, and g_algo'
+                                   honest=True, random_state=42),
+                     'lr': LinearRegression,
+                     'logreg': partial(LogisticRegression, 
+                                        random_state=42),
+                     'rfc': partial(RandomForestClassifier, 
+                                   random_state=42)}
+                     
+    if config.metalearner == 'T':
         
         # Isolate necessary hyperparameters
-        mu0_params = params[mu0_algo]['mu_0']['sim'+sim]
-        mu1_params = params[mu1_algo]['mu_1']['sim'+sim]
-        tau0_params = params[tau0_algo]['tau_0']['sim'+sim]
-        tau1_params = params[tau_algo]['tau_1']['sim'+sim]
-        g_params = params[g_algo]['g']['sim'+sim]
+        mu0_params = config.mu_0.hyperparams
+        mu1_params = config.mu_1.hyperparams
+        
+        # Intialize base learners
+        mu0_base = base_learners[config.mu_0.algo](**mu0_params)
+        mu1_base = base_learners[config.mu_1.algo](**mu1_params)
+
+        # initialize and fit metalearner
+        T = t_learner(mu0_base=mu0_base, mu1_base=mu1_base)
+        T.fit(X=X_train, W=W_train, y=y_train)
+        return T
+ 
+    if config.metalearner == 'S':
+
+        # Isolate necessary hyperparameters
+        mu_params = config.mu.hyperparams
+        
+        # Intialize base learners
+        mu_base = base_learners[config.mu.algo](**mu_params)
+
+        #initialize and fit metalearner
+        S = s_learner(mu_base=mu_base)
+        X_W = pd.concat([X_train, W_train], axis=1)
+        S.fit(X_W=X_W, y=y_train)
+        return S
+        
+    if config.metalearner == 'X':
+
+        # Isolate necessary hyperparameters
+        mu0_params = config.mu_0.hyperparams
+        mu1_params = config.mu_1.hyperparams
+        tau0_params = config.tau_0.hyperparams
+        tau1_params = config.tau_1.hyperparams
+        g_params = config.g.hyperparams
 
         # Intialize base learners
-        mu0_base = base_learners[mu0_algo](**mu0_params)
-        mu1_base = base_learners[mu1_algo](**mu1_params)
-        tau0_base = base_learners[tau0_algo](**tau0_params)
-        tau1_base = base_learners[tau1_algo](**tau1_params)
-        g_base = base_learners[g_algo](**g_params)
+        mu0_base = base_learners[config.mu_0.algo](**mu0_params)
+        mu1_base = base_learners[config.mu_1.algo](**mu1_params)
+        tau0_base = base_learners[config.tau_0.algo](**tau0_params)
+        tau1_base = base_learners[config.tau_0.algo](**tau1_params)
+        g_base = base_learners[config.g.algo](**g_params)
 
-       # FIT AND PREDICT
+        #fit g using training data and predict propensities
+        g_fit = g_base.fit(X=X_train, y=W_train)
+        g_pred = g_fit.predict_proba(X_test)[:, 1]
+        
+        # initialize metalearner
+        X_learner = x_learner(mu0_base=mu0_base, mu1_base=mu1_base, 
+                                tau0_base=tau0_base, tau1_base=tau1_base)
 
-    pass
+        # Fit treatment and response estimators mu0 and  mu1
+        X_learner.fit(X=X_train, W=W_train, y=y_train, export_preds=False)
 
-
+        # return fitted X-learner and predicted propensities
+        return(X_learner, g_pred)
 
 
 def main(args):
@@ -400,7 +422,7 @@ def main(args):
                 test = pd.read_parquet(base_repo_dir / 'data' / str(train_size) / sim / samp_test_name)
 
                 for metalearner in meta_base_dict.keys():
-
+                    base_learner_dict = meta_base_dict['metalearner'][0]
                     if metalearner == 'T':
                         if base_learner_dict['mu_0'] == 'rf':
                             mu0_hyperparams = rf_params[metalearner]['mu_0'][sim]
