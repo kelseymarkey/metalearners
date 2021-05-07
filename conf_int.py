@@ -77,9 +77,6 @@ def main(args):
         these_preds = fit_predict(train=boot_df, test=test,
                                   config=this_config) 
 
-        # generate fake preds to test CI calculation
-        # these_preds = np.random.random(size=len(test))
-
         # If parallelized, should write each array to file?
         # Or collect results with fancy array method?
         all_preds[:,b] = these_preds
@@ -100,9 +97,6 @@ def main(args):
         # train another model on the original train
         norm_center_preds = fit_predict(train=train, test=test, 
                                         config=this_config)
-
-        # generate fake preds to test CI calculation
-        # norm_center_preds = np.random.random(size=len(test))
 
         #get row-wise SD of test set preds
         norm_sigma = np.std(all_preds, axis=1)
