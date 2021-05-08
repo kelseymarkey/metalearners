@@ -222,13 +222,14 @@ def fit_get_mse_s(train, test, mu_base, export_preds=False):
     return (mse, export_df)
 
 
-def fit_get_mse_x(train, test, mu0_base, mu1_base, tau0_base, tau1_base, rf_prop=False, export_preds=False):
+def fit_get_mse_x(train, test, mu0_base, mu1_base, tau0_base, tau1_base, g_base, export_preds=False):
     
     '''
     mu0_base: base learner that has already been initialized
     mu1_base: base learner that has already been initialized
     tau0_base: base learner that has already been initialized
     tau1_base: base learner that has already been initialized
+    g_base: base learner that has already been initialized
     '''
 
     #data preprocessing
@@ -237,14 +238,9 @@ def fit_get_mse_x(train, test, mu0_base, mu1_base, tau0_base, tau1_base, rf_prop
     W_train = train['treatment']
     X_test = test.drop(columns=['treatment', 'Y', 'tau', 'pscore'])
     g_true = test['pscore'].to_numpy()
-    
-    #fit g using training data
-    if rf_prop:
-        g_fit = RandomForestClassifier(random_state=0).fit(X=X_train, y=W_train)
-    else:
-        g_fit = LogisticRegression(fit_intercept=True, max_iter=2000, random_state=42).fit(
-            X=X_train, y=W_train)
-    #predict on test set
+
+    # fit g using training data, predict on test set
+    g_fit = g_base.fit(X=X_train, y=W_train)
     g_pred = g_fit.predict_proba(X_test)[:, 1]
     
     # initialize metalearner
@@ -353,6 +349,12 @@ def main(args):
                             tau1_hyperparams = rf_params[metalearner]['tau_1'][sim]
                             # tau1_base = RegressionForest(honest=True, random_state=42, **tau1_hyperparams)
                             tau1_base = RegressionForest(honest=True, random_state=42)
+                        if meta_base_dict[metalearner]['g'] == 'rfc':
+                            g_hyperparams = rf_params[metalearner]['g'][sim]
+                            # g_base = RandomForestClassifier(random_state=42, **g_hyperparams)
+                            g_base = RandomForestClassifier(random_state=42)
+                        if meta_base_dict[metalearner]['g'] == 'logreg':
+                            g_base = LogisticRegression(fit_intercept=True, max_iter=500, random_state=42)
                             
                         # TODO: add logic for if other base learner types
                         if args.export_preds and i == 0:
@@ -361,7 +363,7 @@ def main(args):
                             export_preds = False
 
                         (x_mse_true, x_mse_pred, export_df, export_df_train) = fit_get_mse_x(train, test,
-                                mu0_base, mu1_base, tau0_base, tau1_base, args.rf_prop, export_preds)
+                                mu0_base, mu1_base, tau0_base, tau1_base, g_base, export_preds)
 
                     if args.export_preds and i == 0 and train_size == 300000:
                         # Export predictions for first sample if export_preds flag. Only for largest sample size
@@ -386,10 +388,7 @@ def main(args):
     # Save results with filename of the form results_{A}_{B}_{C}_g_{D}.csv where A is the substring from base_learners
     # filename, B is the substring from hyperpameter filenames, C is # of samples, and D is method for fitting g.
     bl_substr = re.search('base_learners_(.*?).json', args.base_learner_filename).group(1)
-    if args.rf_prop:
-        g_str = 'rf'
-    else:
-        g_str = 'logreg'
+    g_str = meta_base_dict['X']['g']
     filename = 'results_' + bl_substr + '_' + args.hp_substr + '_' + str(args.samples) + '_g_' + g_str + '.csv'
     results.to_csv(os.path.join('results', filename), index=False)
 
@@ -407,9 +406,6 @@ if __name__ == "__main__":
     parser.add_argument("--export_preds", action='store_true',
                         help='Boolean flag indicating that predictions (e.g. y0_preds, y1_preds for T learner) ' +
                         'should be exported.')
-    parser.add_argument("--rf_prop", action='store_true',
-                        help='Boolean flag indicating that RandomForestClassifier should be used for ' +
-                        'predicted propensity scores. Without flag LogisticRegression is used.')
     parser.add_argument("--base_learner_filename", type=str, default='base_learners.json',
                         help='Name of base learner file to use. Should be of form base_learners_XX.json ' +
                         'and reside in configurations/base_learners')
