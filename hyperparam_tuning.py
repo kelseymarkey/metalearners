@@ -337,11 +337,23 @@ def main():
     
     # add best params to allsims dictionaries
     for key, val in rf_x.items():
-      rf_x_allsims[key][sim] = val
+      if sim=='simA':
+        rf_x_allsims[key]={}
+        rf_x_allsims[key][sim] = val
+      else:
+        rf_x_allsims[key][sim] = val
     for key, val in rf_t.items():
-      rf_t_allsims[key][sim] = val
+      if sim=='simA':
+        rf_t_allsims[key] = {}
+        rf_t_allsims[key][sim] = val
+      else:
+        rf_t_allsims[key][sim] = val
     for key, val in rf_s.items():
-      rf_s_allsims[key][sim] = val
+      if sim=='simA':
+        rf_s_allsims[key] = {}
+        rf_s_allsims[key][sim] = val
+      else:
+        rf_s_allsims[key][sim] = val
 
   filepath_x = base_repo_dir + 'configurations/hyperparameters/rf_x_tuned.json'
   filepath_t = base_repo_dir + 'configurations/hyperparameters/rf_t_tuned.json'
