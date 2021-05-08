@@ -20,6 +20,7 @@ from functools import partial
 from varname import nameof
 from learners import fit_predict_ci
 import utils.configClass
+import utils.metaClass
 from utils.utils import strat_sample, config_from_json
 
 def get_ci (boot_preds, alpha, ci_type, 
