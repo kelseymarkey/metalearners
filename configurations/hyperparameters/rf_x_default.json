@@ -1,0 +1,37 @@
+{
+"mu_0": 
+    {"simA": {"n_estimators": 200, "min_samples_split": 15}, 
+    "simB": {"n_estimators": 300, "min_samples_split": 10}, 
+    "simC": {"n_estimators": 100, "min_samples_split": 10}, 
+    "simD": {"n_estimators": 200, "min_samples_split": 20}, 
+    "simE": {"n_estimators": 100, "min_samples_split": 15}, 
+    "simF": {"n_estimators": 300, "min_samples_split": 20}},
+"mu_1": 
+    {"simA": {"n_estimators": 100, "min_samples_split": 20}, 
+    "simB": {"n_estimators": 200, "min_samples_split": 25}, 
+    "simC": {"n_estimators": 100, "min_samples_split": 10}, 
+    "simD": {"n_estimators": 400, "min_samples_split": 20}, 
+    "simE": {"n_estimators": 100, "min_samples_split": 5}, 
+    "simF": {"n_estimators": 300, "min_samples_split": 10}},
+"tau_0": 
+    {"simA": {"n_estimators": 100, "min_samples_split": 20}, 
+    "simB": {"n_estimators": 200, "min_samples_split": 25}, 
+    "simC": {"n_estimators": 100, "min_samples_split": 10}, 
+    "simD": {"n_estimators": 400, "min_samples_split": 20}, 
+    "simE": {"n_estimators": 100, "min_samples_split": 5}, 
+    "simF": {"n_estimators": 300, "min_samples_split": 10}},
+"tau_1": 
+    {"simA": {"n_estimators": 100, "min_samples_split": 20}, 
+    "simB": {"n_estimators": 200, "min_samples_split": 25}, 
+    "simC": {"n_estimators": 100, "min_samples_split": 10}, 
+    "simD": {"n_estimators": 400, "min_samples_split": 20}, 
+    "simE": {"n_estimators": 100, "min_samples_split": 5}, 
+    "simF": {"n_estimators": 300, "min_samples_split": 10}},
+"g":
+    {"simA": {"n_estimators": 200, "min_samples_split": 15},
+    "simB": {"n_estimators": 300, "min_samples_split": 10},
+    "simC": {"n_estimators": 100, "min_samples_split": 10},
+    "simD": {"n_estimators": 200, "min_samples_split": 20},
+    "simE": {"n_estimators": 100, "min_samples_split": 15},
+    "simF": {"n_estimators": 300, "min_samples_split": 20}}
+}

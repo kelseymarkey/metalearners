@@ -15,9 +15,9 @@ import utils.configClass
 from utils.utils import strat_sample, split_Xy_train_test
 
 '''
-Small run usage example: python learners.py --samples 3 --training_sizes 5000 --base_learner_filename base_learners_rf.json
-Currently fitting RF-based T, S, and X-Learner and predicting CATE for each row of test set.
-Does not save predictions or fit. Only prints and saves MSE.
+Small run usage example: python learners.py --samples 3 --training_sizes 5000
+                        --base_learner_filename base_learners_rf.json --hp_substr default
+Currently fitting RF-based T, S, and X-Learner, predicting CATE for each row of test set, & saving MSE results.
 '''
 
 
@@ -77,11 +77,11 @@ class s_learner:
 
     def predict(self, X, export_preds=False):
         X_W_1 = X.copy(deep=True)
-        X_W_1["W"] = pd.Series(np.ones(len(X_W_1)))
+        X_W_1["W"] = 1
         y1_preds = self.mu_base.predict(X_W_1)
 
         X_W_0 = X.copy(deep=True)
-        X_W_0["W"] = pd.Series(np.zeros(len(X_W_0)))
+        X_W_0["W"] = 0
         y0_preds = self.mu_base.predict(X_W_0)
 
         tau_preds = y1_preds - y0_preds
@@ -202,6 +202,7 @@ def fit_get_mse_s(train, test, mu_base, export_preds=False):
     y_train = train['Y']
     W_train = train['treatment']
     X_test = test.drop(columns=['treatment', 'Y', 'tau', 'pscore'])
+    
 
     #initialize metalearner
     S = s_learner(mu_base=mu_base)
@@ -223,13 +224,14 @@ def fit_get_mse_s(train, test, mu_base, export_preds=False):
     return (mse, export_df)
 
 
-def fit_get_mse_x(train, test, mu0_base, mu1_base, tau0_base, tau1_base, rf_prop=False, export_preds=False):
+def fit_get_mse_x(train, test, mu0_base, mu1_base, tau0_base, tau1_base, g_base, export_preds=False):
     
     '''
     mu0_base: base learner that has already been initialized
     mu1_base: base learner that has already been initialized
     tau0_base: base learner that has already been initialized
     tau1_base: base learner that has already been initialized
+    g_base: base learner that has already been initialized
     '''
 
     #data preprocessing
@@ -238,14 +240,9 @@ def fit_get_mse_x(train, test, mu0_base, mu1_base, tau0_base, tau1_base, rf_prop
     W_train = train['treatment']
     X_test = test.drop(columns=['treatment', 'Y', 'tau', 'pscore'])
     g_true = test['pscore'].to_numpy()
-    
-    #fit g using training data
-    if rf_prop:
-        g_fit = RandomForestClassifier(random_state=0).fit(X=X_train, y=W_train)
-    else:
-        g_fit = LogisticRegression(fit_intercept=True, max_iter=2000, random_state=42).fit(
-            X=X_train, y=W_train)
-    #predict on test set
+
+    # fit g using training data, predict on test set
+    g_fit = g_base.fit(X=X_train, y=W_train)
     g_pred = g_fit.predict_proba(X_test)[:, 1]
     
     # initialize metalearner
@@ -380,9 +377,9 @@ def main(args):
     
     # read in tuned hyperparameter files
     # TODO: add in other base learner
-    rf_t = json.load(open(base_repo_dir / 'configurations' / 'hyperparameters' / 'rf_t.json'))
-    rf_s = json.load(open(base_repo_dir / 'configurations' / 'hyperparameters' / 'rf_s.json'))
-    rf_x = json.load(open(base_repo_dir / 'configurations' / 'hyperparameters' / 'rf_x.json'))
+    rf_t = json.load(open(base_repo_dir / 'configurations' / 'hyperparameters' / 'rf_t_{}.json'.format(args.hp_substr)))
+    rf_s = json.load(open(base_repo_dir / 'configurations' / 'hyperparameters' / 'rf_s_{}.json'.format(args.hp_substr)))
+    rf_x = json.load(open(base_repo_dir / 'configurations' / 'hyperparameters' / 'rf_x_{}.json'.format(args.hp_substr)))
     
     rf_params = {'T': rf_t, 'S': rf_s, 'X': rf_x}
     
@@ -391,90 +388,85 @@ def main(args):
     
     #initialize temp list where results will be stored and column names for results df
     rows=[]
-
-    for train_size in args.training_sizes:
+    for sim in ['simA', 'simB', 'simC', 'simD', 'simE', 'simF']:
         print('---------------------------')
-        print('Training set size:', train_size)
-        
-        for sim in ['simA', 'simB', 'simC', 'simD', 'simE', 'simF']:
-            print('     Starting '+ sim)
-
-            # Instantiate empty lists for saving mse results
-            T_results, S_results, X_results_PTrue, X_results_PPred= [], [], [], []
-
-            for i in range(args.samples):
-                samp_train_name = 'samp' + str(i+1) + '_train.parquet'
-                samp_test_name = 'samp' + str(i+1) + '_test.parquet'
-                train = pd.read_parquet(base_repo_dir / 'data' / str(train_size) / sim / samp_train_name)
-                test = pd.read_parquet(base_repo_dir / 'data' / str(train_size) / sim / samp_test_name)
-
+        print('Starting '+ sim)
+        for i in range(args.samples):
+            print('     Starting sample'+ str(i+1))
+            samp_train_name = 'samp' + str(i+1) + '_train.parquet'
+            samp_test_name = 'samp' + str(i+1) + '_test.parquet'
+            full_train = pd.read_parquet(base_repo_dir / 'data' / sim / samp_train_name)
+            test = pd.read_parquet(base_repo_dir / 'data' / sim / samp_test_name)
+            for train_size in args.training_sizes:
+                print('         Training set size:', train_size)
+                if train_size != 300000:
+                    train = strat_sample(full_train, n=train_size, replace=False, seed=42)
+                else: 
+                    train = full_train
+                
                 for metalearner in meta_base_dict.keys():
-                    base_learner_dict = meta_base_dict['metalearner'][0]
                     if metalearner == 'T':
-                        if base_learner_dict['mu_0'] == 'rf':
+                        if meta_base_dict[metalearner]['mu_0'] == 'rf':
                             mu0_hyperparams = rf_params[metalearner]['mu_0'][sim]
-                            # uncomment out all of these lines once hyperparameter jsons updated from tuning
-                            # mu0_base = RegressionForest(honest=True, random_state=42, **mu0_hyperparams)
+                                # uncomment out all of these lines once hyperparameter jsons updated from tuning
+                                # mu0_base = RegressionForest(honest=True, random_state=42, **mu0_hyperparams)
                             mu0_base = RegressionForest(honest=True, random_state=42)
-                        if base_learner_dict['mu_1'] == 'rf':
+                        if meta_base_dict[metalearner]['mu_1'] == 'rf':
                             mu1_hyperparams = rf_params[metalearner]['mu_1'][sim]
-                            #mu1_base = RegressionForest(honest=True, random_state=42, **mu1_hyperparams)
+                                #mu1_base = RegressionForest(honest=True, random_state=42, **mu1_hyperparams)
                             mu1_base = RegressionForest(honest=True, random_state=42)
                         # TODO: add logic for if base_learner_dict[mu_0]/[mu_1] is other base learner type
-
-                        if (args.export_preds and i == 0):
-                            (mse, export_df) = fit_get_mse_t(train, test, mu0_base, mu1_base, export_preds=True)
+                        if args.export_preds and i == 0:
+                            (t_mse, export_df) = fit_get_mse_t(train, test, mu0_base, mu1_base, export_preds=True)
                         else:
-                            (mse, _) = fit_get_mse_t(train, test, mu0_base, mu1_base, export_preds=False)
-                        T_results.append(mse)
-
+                            (t_mse, _) = fit_get_mse_t(train, test, mu0_base, mu1_base, export_preds=False)
 
                     if metalearner == 'S':
-                        if base_learner_dict['mu'] == 'rf':
+                        if meta_base_dict[metalearner]['mu'] == 'rf':
                             mu_hyperparams = rf_params[metalearner]['mu'][sim]
                             # uncomment out all of these lines once hyperparameter jsons updated from tuning
                             # mu_base = RegressionForest(honest=True, random_state=42, **mu_hyperparams)
                             mu_base = RegressionForest(honest=True, random_state=42)
-                        
+                            
                         # TODO: add logic for if base_learner_dict[mu] is other base learner type
-                        if (args.export_preds and i == 0):
-                            (mse, export_df) = fit_get_mse_s(train, test, mu_base, export_preds=True)
+                        if args.export_preds and i == 0:
+                            (s_mse, export_df) = fit_get_mse_s(train, test, mu_base, export_preds=True)
                         else:
-                            (mse, _) = fit_get_mse_s(train, test, mu_base, export_preds=False)
-                        S_results.append(mse)
-
-                        
+                            (s_mse, _) = fit_get_mse_s(train, test, mu_base, export_preds=False)
+                            
                     if metalearner == 'X':
-                        if base_learner_dict['mu_0'] == 'rf':
+                        if meta_base_dict[metalearner]['mu_0'] == 'rf':
                             mu0_hyperparams = rf_params[metalearner]['mu_0'][sim]
                             # uncomment out all of these lines once hyperparameter jsons updated from tuning
                             # mu0_base = RegressionForest(honest=True, random_state=42, **mu0_hyperparams)
                             mu0_base = RegressionForest(honest=True, random_state=42)
-                        if base_learner_dict['mu_1'] == 'rf':
+                        if meta_base_dict[metalearner]['mu_1'] == 'rf':
                             mu1_hyperparams = rf_params[metalearner]['mu_1'][sim]
                             # mu1_base = RegressionForest(honest=True, random_state=42, **mu1_hyperparams)
                             mu1_base = RegressionForest(honest=True, random_state=42)
-                        if base_learner_dict['tau_0'] == 'rf':
+                        if meta_base_dict[metalearner]['tau_0'] == 'rf':
                             tau0_hyperparams = rf_params[metalearner]['tau_0'][sim]
                             # tau0_base = RegressionForest(honest=True, random_state=42, **tau0_hyperparams)
                             tau0_base = RegressionForest(honest=True, random_state=42)
-                        if base_learner_dict['tau_1'] == 'rf':
+                        if meta_base_dict[metalearner]['tau_1'] == 'rf':
                             tau1_hyperparams = rf_params[metalearner]['tau_1'][sim]
                             # tau1_base = RegressionForest(honest=True, random_state=42, **tau1_hyperparams)
                             tau1_base = RegressionForest(honest=True, random_state=42)
-                        
+                        if meta_base_dict[metalearner]['g'] == 'rfc':
+                            g_hyperparams = rf_params[metalearner]['g'][sim]
+                            # g_base = RandomForestClassifier(random_state=42, **g_hyperparams)
+                            g_base = RandomForestClassifier(random_state=42)
+                        if meta_base_dict[metalearner]['g'] == 'logreg':
+                            g_base = LogisticRegression(fit_intercept=True, max_iter=500, random_state=42)
+                            
                         # TODO: add logic for if other base learner types
-
-                        # Why only for X-learner?
-                        if (args.export_preds and i == 0):
+                        if args.export_preds and i == 0:
                             export_preds = True
                         else:
                             export_preds = False
 
-                        (mse_true, mse_pred, export_df, export_df_train) = fit_get_mse_x(train, test,
-                            mu0_base, mu1_base, tau0_base, tau1_base, args.rf_prop, export_preds)
-                        X_results_PTrue.append(mse_true)
-                        X_results_PPred.append(mse_pred)
+                        (x_mse_true, x_mse_pred, export_df, export_df_train) = fit_get_mse_x(train, test,
+                                mu0_base, mu1_base, tau0_base, tau1_base, g_base, export_preds)
 
                     if args.export_preds and i == 0 and train_size == 300000:
                         # Export predictions for first sample if export_preds flag. Only for largest sample size
@@ -488,20 +480,20 @@ def main(args):
                         filename = sim + '_' + metalearner + '_' + str(train_size) + '.parquet'
                         export_df.to_parquet(os.path.join(export_dir, filename))
 
+                rows.append([sim, i, train_size, t_mse, s_mse, x_mse_true, x_mse_pred])   
 
-            rows.append([sim, train_size, np.mean(T_results), np.mean(S_results),
-                np.mean(X_results_PTrue), np.mean(X_results_PPred)])
-
-    columns=['simulation', 'n', 'T_mse', 'S_mse', 'X_mse_PTrue', 'X_mse_PPred']
+    columns=['simulation', 'trial', 'n', 'T_mse', 'S_mse', 'X_mse_PTrue', 'X_mse_PPred']
     results = pd.DataFrame(rows, columns=columns)
-    results.sort_values(by=['simulation', 'n'], inplace=True)
+    results = results.groupby(['simulation', 'n'])['T_mse', 'S_mse', 'X_mse_PTrue', 'X_mse_PPred'].mean().reset_index()
     print('---------------------------')
     print('Results:\n', results)
 
-    # Save results
-    substring = re.search('base_learners_(.*?).json', args.base_learner_filename).group(1)
-    filename = 'results_' + substring + '.csv'
-    results.to_csv(filename, index=False)
+    # Save results with filename of the form results_{A}_{B}_{C}_g_{D}.csv where A is the substring from base_learners
+    # filename, B is the substring from hyperpameter filenames, C is # of samples, and D is method for fitting g.
+    bl_substr = re.search('base_learners_(.*?).json', args.base_learner_filename).group(1)
+    g_str = meta_base_dict['X']['g']
+    filename = 'results_' + bl_substr + '_' + args.hp_substr + '_' + str(args.samples) + '_g_' + g_str + '.csv'
+    results.to_csv(os.path.join('results', filename), index=False)
 
     return
 
@@ -517,12 +509,13 @@ if __name__ == "__main__":
     parser.add_argument("--export_preds", action='store_true',
                         help='Boolean flag indicating that predictions (e.g. y0_preds, y1_preds for T learner) ' +
                         'should be exported.')
-    parser.add_argument("--rf_prop", action='store_true',
-                        help='Boolean flag indicating that RandomForestClassifier should be used for ' +
-                        'predicted propensity scores. Without flag LogisticRegression is used.')
     parser.add_argument("--base_learner_filename", type=str, default='base_learners.json',
                         help='Name of base learner file to use. Should be of form base_learners_XX.json ' +
                         'and reside in configurations/base_learners')
+    parser.add_argument("--hp_substr", type=str, default='default',
+                        help='The naming convention for the hyperparameter files that should be used. For ' +
+                        'example if user wishes to use rf_t_default.json/rf_s_default.json/etc. then the string ' +
+                        'passed should be default.')
     args = parser.parse_args()
 
     # Call main routine

@@ -1,10 +1,11 @@
 #!/bin/bash
 
 # This script generates a training and test dataset for each
-# training set size in n_train. Test set sizes are all 100,000 rows.
-# 30 samples of each simulation (A, B, C, D, E, and F) 
+# simulation in SIMS. Training set sizes are all 300,000 rows,
+# test set sizes are all 100,000 rows. 30 samples of each
+# simulation (A, B, C, D, E, and F) are created.
 
-n_train=(5000 10000 20000 100000 300000)
+n_train=300000
 n_test=100000
 n_samples=30
 
@@ -16,14 +17,14 @@ SIMS=('A' 'B' 'C' 'D' 'E' 'F')
 for train_size in ${n_train[@]}
 do
 	# Create necessary directory
-	mkdir -p "data/$train_size/"
+	mkdir -p "data/"
 
 	for sim in ${SIMS[@]}
 	do
 		echo "BEGIN SIMULATION $sim"
 
 	    # Create necessary directory
-	    mkdir -p "data/$train_size/sim$sim"
+	    mkdir -p "data/sim${sim}"
 
 	    # Initialize counter
 	    i=1
