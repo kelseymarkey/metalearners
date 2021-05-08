@@ -1,0 +1,1 @@
+{"mu0": {"simA": {"n_estimators": 250.0, "max_samples": 0.9, "max_features": 20, "min_samples_leaf": 3}}, "mu1": {"simA": {"n_estimators": 150.0, "max_samples": 0.9, "max_features": 20, "min_samples_leaf": 100}}}
