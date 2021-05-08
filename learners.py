@@ -13,9 +13,9 @@ from sklearn.ensemble import RandomForestClassifier
 from utils import strat_sample
 
 '''
-Small run usage example: python learners.py --samples 3 --training_sizes 5000 --base_learner_filename base_learners_rf.json
-Currently fitting RF-based T, S, and X-Learner and predicting CATE for each row of test set.
-Does not save predictions or fit. Only prints and saves MSE.
+Small run usage example: python learners.py --samples 3 --training_sizes 5000
+                        --base_learner_filename base_learners_rf.json --hp_substr default
+Currently fitting RF-based T, S, and X-Learner, predicting CATE for each row of test set, & saving MSE results.
 '''
 
 
@@ -238,7 +238,7 @@ def fit_get_mse_x(train, test, mu0_base, mu1_base, tau0_base, tau1_base, rf_prop
     g_true = test['pscore'].to_numpy()
     
     #fit g using training data
-    if rf_prop:
+    if args.rf_prop:
         g_fit = RandomForestClassifier(random_state=0).fit(X=X_train, y=W_train)
     else:
         g_fit = LogisticRegression(fit_intercept=True, max_iter=2000, random_state=42).fit(
@@ -277,9 +277,9 @@ def main(args):
     
     # read in tuned hyperparameter files
     # TODO: add in other base learner
-    rf_t = json.load(open(base_repo_dir / 'configurations' / 'hyperparameters' / 'rf_t.json'))
-    rf_s = json.load(open(base_repo_dir / 'configurations' / 'hyperparameters' / 'rf_s.json'))
-    rf_x = json.load(open(base_repo_dir / 'configurations' / 'hyperparameters' / 'rf_x.json'))
+    rf_t = json.load(open(base_repo_dir / 'configurations' / 'hyperparameters' / 'rf_t_{}.json'.format(args.hp_substr)))
+    rf_s = json.load(open(base_repo_dir / 'configurations' / 'hyperparameters' / 'rf_s_{}.json'.format(args.hp_substr)))
+    rf_x = json.load(open(base_repo_dir / 'configurations' / 'hyperparameters' / 'rf_x_{}.json'.format(args.hp_substr)))
     
     rf_params = {'T': rf_t, 'S': rf_s, 'X': rf_x}
     
@@ -382,9 +382,14 @@ def main(args):
     print('---------------------------')
     print('Results:\n', results)
 
-    # Save results
-    substring = re.search('base_learners_(.*?).json', args.base_learner_filename).group(1)
-    filename = 'results_' + substring + '.csv'
+    # Save results with filename of the form results_{A}_{B}_{C}_g_{D}.csv where A is the substring from base_learners
+    # filename, B is the substring from hyperpameter filenames, C is # of samples, and D is method for fitting g.
+    bl_substr = re.search('base_learners_(.*?).json', args.base_learner_filename).group(1)
+    if args.rf_prop:
+        g_str = 'rf'
+    else:
+        g_str = 'logreg'
+    filename = 'results_' + bl_substr + '_' + args.hp_substr + '_' + str(args.samples) + '_g_' + g_str + '.csv'
     results.to_csv(os.path.join('results', filename), index=False)
 
     return
@@ -407,6 +412,10 @@ if __name__ == "__main__":
     parser.add_argument("--base_learner_filename", type=str, default='base_learners.json',
                         help='Name of base learner file to use. Should be of form base_learners_XX.json ' +
                         'and reside in configurations/base_learners')
+    parser.add_argument("--hp_substr", type=str, default='default',
+                        help='The naming convention for the hyperparameter files that should be used. For ' +
+                        'example if user wishes to use rf_t_default.json/rf_s_default.json/etc. then the string ' +
+                        'passed should be default.')
     args = parser.parse_args()
 
     # Call main routine
