@@ -18,7 +18,7 @@ import pandas as pd
 from scipy.stats import norm
 from functools import partial
 from varname import nameof
-from learners import fit_predict
+from learners import fit_predict_ci
 import utils.configClass
 from utils.utils import strat_sample, config_from_json
 
@@ -32,7 +32,7 @@ def get_ci (boot_preds, alpha, ci_type,
     if ci_type=='order1norm':
         
         # train another model on the original train set
-        center_preds = fit_predict(train=train, test=test, 
+        center_preds = fit_predict_ci(train=train, test=test, 
                                    config=config)
 
         # get row-wise SD of bootstrap preds on test set
@@ -117,7 +117,7 @@ def main(args):
         boot_df = strat_sample(train, n=len(train), replace=True, seed=b)
 
         # train model on bootstrapped df
-        these_preds = fit_predict(train=boot_df, test=test,
+        these_preds = fit_predict_ci(train=boot_df, test=test,
                                   config=config) 
 
         # If parallelized, should write each array to file?

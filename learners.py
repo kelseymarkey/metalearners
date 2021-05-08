@@ -12,7 +12,7 @@ from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.ensemble import RandomForestClassifier
 from functools import partial
 import utils.configClass
-from utils.utils import strat_sample, split_Xy_train_test
+from utils.utils import strat_sample, split_Xy_train_test, config_from_json
 
 '''
 Small run usage example: python learners.py --samples 3 --training_sizes 5000
@@ -37,18 +37,31 @@ class t_learner:
         self.mu0_base = clone(mu0_base, safe=False)
         self.mu1_base = clone(mu1_base, safe=False)
 
-    def fit(self, X, W, y):
-        # Call fit methods on each base learner
-        self.mu0_base.fit(X[W==0], y[W==0])
-        self.mu1_base.fit(X[W==1], y[W==1])
+    def fit(self, X, W, y, g=None):
 
+        if type(g)!=type(None):
+            g0 = g[W==0]
+            g1 = g[W==1]
+
+        # Call fit methods on each base learner
+        if isinstance(self.mu0_base, LinearRegression):
+            # fit with IPW sample weights (unbiased for full data)
+            self.mu0_base.fit(X[W==0], y[W==0], sample_weight=1/(1-g0))
+        else:
+            self.mu0_base.fit(X[W==0], y[W==0])
+        if isinstance(self.mu1_base, LinearRegression):
+            # fit with IPW sample weights (unbiased for full data)
+            self.mu1_base.fit(X[W==1], y[W==1], sample_weight=1/g1)
+        else:
+            self.mu1_base.fit(X[W==1], y[W==1])
+            
     def predict(self, X, export_preds=False):
         y1_preds = self.mu1_base.predict(X)
         y0_preds = self.mu0_base.predict(X)
         tau_preds = y1_preds - y0_preds
 
         if export_preds:
-            export_df = X.copy(deep=True)
+            export_df = pd.DataFrame()
             export_df["y1_preds"] = y1_preds.flatten()
             export_df["y0_preds"] = y0_preds.flatten()
             export_df["tau_preds"] = tau_preds.flatten()
@@ -71,8 +84,8 @@ class s_learner:
         # Make copies of initialized base learner
         self.mu_base = clone(mu_base, safe=False)
 
-    def fit(self, X_W, y):
-        # Call fit method
+    def fit(self, X_W, y, *argv):
+        # fit on full data, so unbiased
         self.mu_base.fit(X_W, y)
 
     def predict(self, X, export_preds=False):
@@ -87,7 +100,7 @@ class s_learner:
         tau_preds = y1_preds - y0_preds
 
         if export_preds:
-            export_df = X.copy(deep=True)
+            export_df = pd.DataFrame()
             export_df["y1_preds"] = y1_preds.flatten()
             export_df["y0_preds"] = y0_preds.flatten()
             export_df["tau_preds"] = tau_preds.flatten()
@@ -114,10 +127,24 @@ class x_learner:
         self.tau0_base = clone(tau0_base, safe=False)
         self.tau1_base = clone(tau1_base, safe=False)
 
-    def fit(self, X, W, y, export_preds):
+    def fit(self, X, W, y, g=None, export_preds=False):
+
+        if type(g)!=type(None):
+            g0 = g[W==0]
+            g1 = g[W==1]
+
         # Call fit method
-        self.mu0_base.fit(X[W==0], y[W==0])
-        self.mu1_base.fit(X[W==1], y[W==1])
+        if isinstance(self.mu0_base, LinearRegression):
+            # fit with IW sample weights (unbiased for incomplete data)
+            self.mu0_base.fit(X[W==0], y[W==0], sample_weight=g0/(1-g0))
+        else:
+            self.mu0_base.fit(X[W==0], y[W==0])
+
+        if isinstance(self.mu1_base, LinearRegression):
+            # fit with IW sample weights (unbiased for incomplete data)
+            self.mu1_base.fit(X[W==1], y[W==1], sample_weight=(1-g1)/g1)
+        else:
+            self.mu1_base.fit(X[W==1], y[W==1])
     
         #Impute y0 for treated group using mu0
         y0_treat=self.mu0_base.predict(X[W==1]).flatten()
@@ -125,179 +152,139 @@ class x_learner:
 
         #Impute y1 for control group using mu1
         y1_control=self.mu1_base.predict(X[W==0]).flatten()
-        imputed_TE_control = y1_control - y[W==0] 
+        imputed_TE_control = y1_control - y[W==0]
 
         #Fit tau0: CATE estimate fit to the control group
-        self.tau0_base.fit(X[W==0], imputed_TE_control)
+        if isinstance(self.tau0_base, LinearRegression):
+            # fit with IPW sample weights (unbiased for full data)
+            self.tau0_base.fit(X[W==0], imputed_TE_control, sample_weight=1/(1-g0))
+        else:
+            self.tau0_base.fit(X[W==0], imputed_TE_control)
 
         #Fit tau1: CATE estimate fit to the treatment group
-        self.tau1_base.fit(X[W==1], imputed_TE_treatment)
+        if isinstance(self.tau1_base, LinearRegression):
+            # fit with IPW sample weights (unbiased for full data)
+            self.tau1_base.fit(X[W==1], imputed_TE_treatment, sample_weight=1/g1)
+        else:
+            self.tau1_base.fit(X[W==1], imputed_TE_treatment)
 
         if export_preds:
             # Export y0_treat and y1_control predictions on training set
-            y0_treat_df = X[W==1].copy(deep=True)
-            y0_treat_df["y0_treat"] = y0_treat
+            y0_treat_df = pd.DataFrame()
+            y0_treat_df["y0_treat_preds"] = y0_treat
             y0_treat_df["y"] = y[W==1]
             y0_treat_df["W"] = 1
+            y0_treat_df['pscore_preds'] = g1
 
-            y1_control_df = X[W==0].copy(deep=True)
-            y1_control_df["y1_control"] = y1_control
+            y1_control_df = pd.DataFrame()
+            y1_control_df["y1_control_preds"] = y1_control
             y1_control_df["y"] = y[W==0]
             y1_control_df["W"] = 0
+            y1_control_df['pscore_preds'] = g0
 
             export_df_train = y0_treat_df.append(y1_control_df, ignore_index=True, sort=False)
         else:
             export_df_train = None
         return export_df_train
 
-
-    def predict(self, X, g):
+    def predict(self, X, g, export_preds=False):
         '''
         g : weight vector that should be length of the test set
         '''
         tau0_preds = self.tau0_base.predict(X).flatten()
         tau1_preds = self.tau1_base.predict(X).flatten()
         tau_preds = (g.T * tau0_preds) + ((1-g).T*tau1_preds)
-        return tau_preds.flatten()
+
+        if export_preds:
+            export_df_test = pd.DataFrame({'tau_preds': tau_preds})
+            export_df_test['pscore_preds'] = g
+            return export_df_test
+        else:
+            return tau_preds.flatten()
 
 
-def fit_get_mse_t(train, test, mu0_base, mu1_base, export_preds=False):
-    
+def fit_predict_mse(train, test, config, export_preds):
     '''
-    mu0_base: base learner that has already been initialized
-    mu1_base: base learner that has already been initialized
+    Used in learners loop
     '''
 
     #data preprocessing
-    X_train = train.drop(columns=['treatment', 'Y', 'tau', 'pscore'])
-    y_train = train['Y']
-    W_train = train['treatment']
-    X_test = test.drop(columns=['treatment', 'Y', 'tau', 'pscore'])
-
-    #initialize metalearner
-    T = t_learner(mu0_base=mu0_base, mu1_base=mu1_base)
-    T.fit(X=X_train, W=W_train, y=y_train)
+    X_train, y_train, W_train, X_test = split_Xy_train_test(train, test)
     
-    if export_preds:
-        # Predict test-set CATEs
-        export_df = T.predict(X=X_test, export_preds=export_preds)
-        tau_preds = export_df.tau_preds
-    else:
-        # Predict test-set CATEs
-        tau_preds = T.predict(X=X_test, export_preds=export_preds)
-        export_df = None
+    if (config.metalearner=='T') or (config.metalearner=='S'):
+
+        # fit T or S learner
+        fitted = fit_metalearner(X_train, y_train, W_train, X_test, config)
+
+        if export_preds:
+            # Predict test-set CATEs
+            export_df = fitted.predict(X=X_test, export_preds=True)
+
+            # save values to export_df
+            export_df['tau_true'] = test.tau
+            export_df['y_true'] = test.Y
+            export_df['W'] = test.treatment
+            export_df['pscore_true'] = test.pscore
+            tau_preds = export_df.tau_preds
+        else:
+            # Predict test-set CATEs
+            tau_preds = fitted.predict(X_test, export_preds=False)
+            export_df = None
+
+    elif config.metalearner=='X':
+        # Predict test set CATEs using predicted propensities
+        fitted, g_pred, export_df_train = fit_metalearner(X_train, y_train, W_train,
+                                          X_test, config, export_preds)
+        if export_preds:
+            export_df_test = fitted.predict(X=X_test, g=g_pred, export_preds=True)
+            export_df_test['tau_true'] = test.tau
+            export_df_test['y_true'] = test.Y
+            export_df_test['W'] = test.treatment
+            export_df['pscore_true'] = test.pscore
+
+            tau_preds = export_df_test.tau_preds
+        else:
+            tau_preds = fitted.predict(X=X_test, g=g_pred, export_preds=False)
+            export_df_test = None
+        
+        # Bundle export dfs
+        # Will be (None, None) if export_preds==False
+        export_df = (export_df_train, export_df_test)
+
     # Calculate MSE on test set
     mse = np.mean((tau_preds - test.tau)**2)
     return (mse, export_df)
 
-
-def fit_get_mse_s(train, test, mu_base, export_preds=False):
-    
+def fit_predict_ci(train, test, config):
     '''
-    mu_base: base learner that has already been initialized
+    Used to return predicted taus for confidence intervals
     '''
-
-    #data preprocessing
-    X_train = train.drop(columns=['treatment', 'Y', 'tau', 'pscore'])
-    y_train = train['Y']
-    W_train = train['treatment']
-    X_test = test.drop(columns=['treatment', 'Y', 'tau', 'pscore'])
-    
-
-    #initialize metalearner
-    S = s_learner(mu_base=mu_base)
-    
-    #fit S-learner
-    X_W = pd.concat([X_train, W_train], axis=1)
-    S.fit(X_W=X_W, y=y_train)
-
-    if export_preds:
-        # Predict test-set CATEs
-        export_df = S.predict(X=X_test, export_preds=export_preds)
-        tau_preds = export_df.tau_preds
-    else:
-        # Predict test-set CATEs
-        tau_preds = S.predict(X=X_test, export_preds=export_preds)
-        export_df = None
-    # Calculate MSE on test set
-    mse = np.mean((tau_preds - test.tau)**2)
-    return (mse, export_df)
-
-
-def fit_get_mse_x(train, test, mu0_base, mu1_base, tau0_base, tau1_base, g_base, export_preds=False):
-    
-    '''
-    mu0_base: base learner that has already been initialized
-    mu1_base: base learner that has already been initialized
-    tau0_base: base learner that has already been initialized
-    tau1_base: base learner that has already been initialized
-    g_base: base learner that has already been initialized
-    '''
-
-    #data preprocessing
-    X_train = train.drop(columns=['treatment', 'Y', 'tau', 'pscore'])
-    y_train = train['Y']
-    W_train = train['treatment']
-    X_test = test.drop(columns=['treatment', 'Y', 'tau', 'pscore'])
-    g_true = test['pscore'].to_numpy()
-
-    # fit g using training data, predict on test set
-    g_fit = g_base.fit(X=X_train, y=W_train)
-    g_pred = g_fit.predict_proba(X_test)[:, 1]
-    
-    # initialize metalearner
-    X_learner = x_learner(mu0_base=mu0_base, mu1_base=mu1_base, tau0_base=tau0_base, tau1_base=tau1_base)
-    # Fit treatment and response estimators mu0 and  mu1
-    export_df_train = X_learner.fit(X=X_train, W=W_train, y=y_train, export_preds=export_preds)
-
-    # Predict test set CATEs using true and predicted propensities
-    tau_preds_gtrue = X_learner.predict(X=X_test, g=g_true)
-    tau_preds_gpred = X_learner.predict(X=X_test, g=g_pred)
-
-    if export_preds:
-        export_df = X_test.copy(deep=True)
-        export_df["g_pred"] = g_pred
-        export_df["tau_preds_gtrue"] = tau_preds_gtrue
-        export_df["tau_preds"] = tau_preds_gpred
-    else:
-        export_df = None
-    
-    # Calculate MSE on test set for X-Learners with true and predicted propensities
-    mse_true = np.mean((tau_preds_gtrue - test.tau)**2)
-    mse_pred = np.mean((tau_preds_gpred - test.tau)**2)
-    
-    return (mse_true, mse_pred, export_df, export_df_train)
-
-def fit_predict(train, test, config):
 
     #data preprocessing
     X_train, y_train, W_train, X_test = split_Xy_train_test(train, test)
 
     if (config.metalearner=='T') or (config.metalearner=='S'):
-        fitted = fit_metalearner(X_train, y_train, W_train, X_test, config)
+        fitted = fit_metalearner(X_train, y_train, W_train, X_test, 
+                                config, export_preds=False)
         tau_preds = fitted.predict(X_test, export_preds=False)
 
     elif config.metalearner=='X':
         # Predict test set CATEs using predicted propensities
-        fitted, g_pred = fit_metalearner(X_train, y_train, W_train,
-                                         X_test, config)
-        tau_preds = fitted.predict(X=X_test, g=g_pred)
+        fitted, g_pred, _ = fit_metalearner(X_train, y_train, 
+                                            W_train, X_test, config, 
+                                            export_preds=False)
+        tau_preds = fitted.predict(X=X_test, g=g_pred, export_preds=False)
     return tau_preds
     
 
-def fit_metalearner(X_train, y_train, W_train, X_test, config):
+def fit_metalearner(X_train, y_train, W_train, X_test, 
+                    config, export_preds=False):
 
     '''
-    To be called by conf_int.py
-
     Functionized and generalized method 
     to initialize base learners and train metalearner.
 
-    Return predictions on test set
-    No need to calculate MSE
-
-    Could be wrapper around general intialize / train func(s);
-    with test set prediction added on at the end    
+    Relies on configuration class.
     '''
 
     # dictionary to match algo code to partial init call
@@ -306,7 +293,8 @@ def fit_metalearner(X_train, y_train, W_train, X_test, config):
                                    honest=True, random_state=42),
                      'lr': LinearRegression,
                      'logreg': partial(LogisticRegression, 
-                                        random_state=42),
+                                        random_state=42, 
+                                        max_iter=500),
                      'rfc': partial(RandomForestClassifier, 
                                    random_state=42)}
                      
@@ -315,14 +303,20 @@ def fit_metalearner(X_train, y_train, W_train, X_test, config):
         # Isolate necessary hyperparameters
         mu0_params = config.mu_0.hyperparams
         mu1_params = config.mu_1.hyperparams
+        g_params = config.g.hyperparams
         
         # Intialize base learners
         mu0_base = base_learners[config.mu_0.algo](**mu0_params)
         mu1_base = base_learners[config.mu_1.algo](**mu1_params)
+        g_base = base_learners[config.g.algo](**g_params)
+
+        #fit g using training data and predict propensities
+        g_fit = g_base.fit(X=X_train, y=W_train)
+        g_pred = g_fit.predict_proba(X_train)[:, 1]
 
         # initialize and fit metalearner
         T = t_learner(mu0_base=mu0_base, mu1_base=mu1_base)
-        T.fit(X=X_train, W=W_train, y=y_train)
+        T.fit(X=X_train, W=W_train, y=y_train, g=g_pred)
         return T
  
     if config.metalearner == 'S':
@@ -357,17 +351,20 @@ def fit_metalearner(X_train, y_train, W_train, X_test, config):
 
         #fit g using training data and predict propensities
         g_fit = g_base.fit(X=X_train, y=W_train)
-        g_pred = g_fit.predict_proba(X_test)[:, 1]
+        g_pred_train = g_fit.predict_proba(X_train)[:, 1]
+        g_pred_test = g_fit.predict_proba(X_test)[:, 1]
         
         # initialize metalearner
         X_learner = x_learner(mu0_base=mu0_base, mu1_base=mu1_base, 
                                 tau0_base=tau0_base, tau1_base=tau1_base)
 
         # Fit treatment and response estimators mu0 and  mu1
-        X_learner.fit(X=X_train, W=W_train, y=y_train, export_preds=False)
+        # export_df_train will be None-type if export_preds == False
+        export_df_train = X_learner.fit(X=X_train, W=W_train, y=y_train, 
+                                        g=g_pred_train, export_preds=export_preds)
 
         # return fitted X-learner and predicted propensities
-        return(X_learner, g_pred)
+        return(X_learner, g_pred_test, export_df_train)
 
 
 def main(args):
@@ -376,7 +373,6 @@ def main(args):
     base_repo_dir = pathlib.Path(os.path.realpath(__file__)).parents[0]
     
     # read in tuned hyperparameter files
-    # TODO: add in other base learner
     rf_t = json.load(open(base_repo_dir / 'configurations' / 'hyperparameters' / 'rf_t_{}.json'.format(args.hp_substr)))
     rf_s = json.load(open(base_repo_dir / 'configurations' / 'hyperparameters' / 'rf_s_{}.json'.format(args.hp_substr)))
     rf_x = json.load(open(base_repo_dir / 'configurations' / 'hyperparameters' / 'rf_x_{}.json'.format(args.hp_substr)))
@@ -386,6 +382,9 @@ def main(args):
     # read in file with base learner model types for each metalearner
     meta_base_dict = json.load(open(base_repo_dir / 'configurations' / 'base_learners' / args.base_learner_filename))
     
+    # Base-learners filename substring (for descriptive output filenames)
+    bl_substr = re.search('base_learners_(.*?).json', args.base_learner_filename).group(1)
+
     #initialize temp list where results will be stored and column names for results df
     rows=[]
     for sim in ['simA', 'simB', 'simC', 'simD', 'simE', 'simF']:
@@ -404,96 +403,69 @@ def main(args):
                 else: 
                     train = full_train
                 
+                # initialize dictionary to hold the 3 MSEs for this training size
+                mses=dict()
+
                 for metalearner in meta_base_dict.keys():
-                    if metalearner == 'T':
-                        if meta_base_dict[metalearner]['mu_0'] == 'rf':
-                            mu0_hyperparams = rf_params[metalearner]['mu_0'][sim]
-                                # uncomment out all of these lines once hyperparameter jsons updated from tuning
-                                # mu0_base = RegressionForest(honest=True, random_state=42, **mu0_hyperparams)
-                            mu0_base = RegressionForest(honest=True, random_state=42)
-                        if meta_base_dict[metalearner]['mu_1'] == 'rf':
-                            mu1_hyperparams = rf_params[metalearner]['mu_1'][sim]
-                                #mu1_base = RegressionForest(honest=True, random_state=42, **mu1_hyperparams)
-                            mu1_base = RegressionForest(honest=True, random_state=42)
-                        # TODO: add logic for if base_learner_dict[mu_0]/[mu_1] is other base learner type
-                        if args.export_preds and i == 0:
-                            (t_mse, export_df) = fit_get_mse_t(train, test, mu0_base, mu1_base, export_preds=True)
-                        else:
-                            (t_mse, _) = fit_get_mse_t(train, test, mu0_base, mu1_base, export_preds=False)
-
-                    if metalearner == 'S':
-                        if meta_base_dict[metalearner]['mu'] == 'rf':
-                            mu_hyperparams = rf_params[metalearner]['mu'][sim]
-                            # uncomment out all of these lines once hyperparameter jsons updated from tuning
-                            # mu_base = RegressionForest(honest=True, random_state=42, **mu_hyperparams)
-                            mu_base = RegressionForest(honest=True, random_state=42)
-                            
-                        # TODO: add logic for if base_learner_dict[mu] is other base learner type
-                        if args.export_preds and i == 0:
-                            (s_mse, export_df) = fit_get_mse_s(train, test, mu_base, export_preds=True)
-                        else:
-                            (s_mse, _) = fit_get_mse_s(train, test, mu_base, export_preds=False)
-                            
-                    if metalearner == 'X':
-                        if meta_base_dict[metalearner]['mu_0'] == 'rf':
-                            mu0_hyperparams = rf_params[metalearner]['mu_0'][sim]
-                            # uncomment out all of these lines once hyperparameter jsons updated from tuning
-                            # mu0_base = RegressionForest(honest=True, random_state=42, **mu0_hyperparams)
-                            mu0_base = RegressionForest(honest=True, random_state=42)
-                        if meta_base_dict[metalearner]['mu_1'] == 'rf':
-                            mu1_hyperparams = rf_params[metalearner]['mu_1'][sim]
-                            # mu1_base = RegressionForest(honest=True, random_state=42, **mu1_hyperparams)
-                            mu1_base = RegressionForest(honest=True, random_state=42)
-                        if meta_base_dict[metalearner]['tau_0'] == 'rf':
-                            tau0_hyperparams = rf_params[metalearner]['tau_0'][sim]
-                            # tau0_base = RegressionForest(honest=True, random_state=42, **tau0_hyperparams)
-                            tau0_base = RegressionForest(honest=True, random_state=42)
-                        if meta_base_dict[metalearner]['tau_1'] == 'rf':
-                            tau1_hyperparams = rf_params[metalearner]['tau_1'][sim]
-                            # tau1_base = RegressionForest(honest=True, random_state=42, **tau1_hyperparams)
-                            tau1_base = RegressionForest(honest=True, random_state=42)
-                        if meta_base_dict[metalearner]['g'] == 'rfc':
-                            g_hyperparams = rf_params[metalearner]['g'][sim]
-                            # g_base = RandomForestClassifier(random_state=42, **g_hyperparams)
-                            g_base = RandomForestClassifier(random_state=42)
-                        if meta_base_dict[metalearner]['g'] == 'logreg':
-                            g_base = LogisticRegression(fit_intercept=True, max_iter=500, random_state=42)
-                            
-                        # TODO: add logic for if other base learner types
-                        if args.export_preds and i == 0:
-                            export_preds = True
-                        else:
-                            export_preds = False
-
-                        (x_mse_true, x_mse_pred, export_df, export_df_train) = fit_get_mse_x(train, test,
-                                mu0_base, mu1_base, tau0_base, tau1_base, g_base, export_preds)
-
-                    if args.export_preds and i == 0 and train_size == 300000:
-                        # Export predictions for first sample if export_preds flag. Only for largest sample size
-                        export_dir = os.path.join(base_repo_dir, 'data', 'preds')
+                    
+                    # Create configuration object
+                    config = config_from_json(meta=metalearner, 
+                                                sim=sim[-1], meta_base_dict=meta_base_dict, 
+                                                hyperparams=rf_params[metalearner])
+                    
+                    # Export predictions for first sample of largest size
+                    # if export_preds flag is set to True
+                    if (args.export_preds) and (i == 0) and (train_size == 300000):
+                        export_dir = os.path.join(base_repo_dir, 'results', 'preds')
                         if not os.path.exists(export_dir):
                             os.makedirs(export_dir)
-                        if metalearner == 'X':
-                            # X learner has an extra file to export with Y0/Y1 preds on train
-                            filename_train_preds = sim + '_X_' + str(train_size) + '_train_preds.parquet'
-                            export_df_train.to_parquet(os.path.join(export_dir, filename_train_preds))
-                        filename = sim + '_' + metalearner + '_' + str(train_size) + '.parquet'
-                        export_df.to_parquet(os.path.join(export_dir, filename))
+                        mse, export_df = fit_predict_mse(train, test, 
+                                                         config, 
+                                                        export_preds=True)
+                        if metalearner=='X':
+                            # parse export_df tuple
+                            export_df_train = export_df[0]
+                            export_df_test = export_df[1]
+                            
+                            # Build descriptive filenames
+                            filename_train = 'X_'+ sim + '_' + bl_substr + \
+                                             '_' + args.hp_substr + '_train_preds.parquet'
 
-                rows.append([sim, i, train_size, t_mse, s_mse, x_mse_true, x_mse_pred])   
+                            filename_test = 'X_'+ sim + '_' + bl_substr + \
+                                             '_' + args.hp_substr + '_test_preds.parquet'
+                            
+                            # Save train preds and test preds
+                            export_df_train.to_parquet(os.path.join(export_dir, filename_train))
+                            export_df_test.to_parquet(os.path.join(export_dir, filename_test))
+                        else:
+                            filename_df = metalearner + '_' + sim + '_' + bl_substr + \
+                                             '_' + args.hp_substr + '_test_preds.parquet'
+                            # Save test preds
+                            export_df.to_parquet(os.path.join(export_dir, filename_df))
+                    else:
+                        mse, _ = fit_predict_mse(train, test, 
+                                                         config, export_preds=False)
 
-    columns=['simulation', 'trial', 'n', 'T_mse', 'S_mse', 'X_mse_PTrue', 'X_mse_PPred']
-    results = pd.DataFrame(rows, columns=columns)
-    results = results.groupby(['simulation', 'n'])['T_mse', 'S_mse', 'X_mse_PTrue', 'X_mse_PPred'].mean().reset_index()
+                    # Save MSE to dict
+                    mses[metalearner] = mse
+
+                rows.append([sim, i, train_size, mses['T'], mses['S'], mses['X']])
+
+    columns=['simulation', 'trial', 'n', 'T_mse', 'S_mse', 'X_mse']
+    results_full = pd.DataFrame(rows, columns=columns)
+    results = results_full.groupby(['simulation', 'n'])['T_mse', 'S_mse', 'X_mse'].mean().reset_index()
     print('---------------------------')
     print('Results:\n', results)
 
-    # Save results with filename of the form results_{A}_{B}_{C}_g_{D}.csv where A is the substring from base_learners
-    # filename, B is the substring from hyperpameter filenames, C is # of samples, and D is method for fitting g.
-    bl_substr = re.search('base_learners_(.*?).json', args.base_learner_filename).group(1)
-    g_str = meta_base_dict['X']['g']
-    filename = 'results_' + bl_substr + '_' + args.hp_substr + '_' + str(args.samples) + '_g_' + g_str + '.csv'
-    results.to_csv(os.path.join('results', filename), index=False)
+    # Save results with filename of the form results_{A}_{B}_{C}.csv where A is the substring from base_learners
+    # filename, B is the substring from hyperpameter filenames, and C is # of samples.
+    filename_full = 'results_full_' + bl_substr + '_' + args.hp_substr + '_' + str(args.samples) + '.csv'
+    filename_results = 'results_' + bl_substr + '_' + args.hp_substr + '_' + str(args.samples) + '.csv'
+    mse_out_dir = os.path.join(base_repo_dir, 'results', 'mse')
+    if not os.path.exists(mse_out_dir):
+        os.makedirs(mse_out_dir)
+    results.to_csv(os.path.join(mse_out_dir, filename_results), index=False)
+    results_full.to_csv(os.path.join(mse_out_dir, filename_full), index=False)
 
     return
 
