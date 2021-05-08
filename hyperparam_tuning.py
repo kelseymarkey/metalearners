@@ -343,9 +343,9 @@ def main():
     for key, val in rf_s.items():
       rf_s_allsims[key][sim] = val
 
-  filepath_x = base_repo_dir + 'configurations/hyperparameters/rf_tuned_x.json'
-  filepath_t = base_repo_dir + 'configurations/hyperparameters/rf_tuned_t.json'
-  filepath_s = base_repo_dir + 'configurations/hyperparameters/rf_tuned_s.json'
+  filepath_x = base_repo_dir + 'configurations/hyperparameters/rf_x_tuned.json'
+  filepath_t = base_repo_dir + 'configurations/hyperparameters/rf_t_tuned.json'
+  filepath_s = base_repo_dir + 'configurations/hyperparameters/rf_s_tuned.json'
   with open(filepath_x, 'w') as fp:
     json.dump(rf_x_allsims, fp, default=np_encoder)
   with open(filepath_t, 'w') as fp:

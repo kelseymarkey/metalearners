@@ -75,11 +75,11 @@ class s_learner:
 
     def predict(self, X, export_preds=False):
         X_W_1 = X.copy(deep=True)
-        X_W_1["W"] = pd.Series(np.ones(len(X_W_1)))
+        X_W_1["W"] = 1
         y1_preds = self.mu_base.predict(X_W_1)
 
         X_W_0 = X.copy(deep=True)
-        X_W_0["W"] = pd.Series(np.zeros(len(X_W_0)))
+        X_W_0["W"] = 0
         y0_preds = self.mu_base.predict(X_W_0)
 
         tau_preds = y1_preds - y0_preds
@@ -200,6 +200,7 @@ def fit_get_mse_s(train, test, mu_base, export_preds=False):
     y_train = train['Y']
     W_train = train['treatment']
     X_test = test.drop(columns=['treatment', 'Y', 'tau', 'pscore'])
+    
 
     #initialize metalearner
     S = s_learner(mu_base=mu_base)
@@ -238,7 +239,7 @@ def fit_get_mse_x(train, test, mu0_base, mu1_base, tau0_base, tau1_base, rf_prop
     g_true = test['pscore'].to_numpy()
     
     #fit g using training data
-    if args.rf_prop:
+    if rf_prop:
         g_fit = RandomForestClassifier(random_state=0).fit(X=X_train, y=W_train)
     else:
         g_fit = LogisticRegression(fit_intercept=True, max_iter=2000, random_state=42).fit(
