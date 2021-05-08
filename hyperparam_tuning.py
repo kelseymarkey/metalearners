@@ -314,7 +314,7 @@ def tune_with_learners(train, test, n_iter=1000):
                   for key in params_T_mu0.keys()}, 
           'mu1': {key : params_T_mu1[key][best_idx_T]\
                   for key in params_T_mu1.keys()}}
-  rf_s = {'mu_base_S': {key : params_S_mu[key][best_idx_S]\
+  rf_s = {'mu': {key : params_S_mu[key][best_idx_S]\
                         for key in params_S_mu.keys()}}
   return (rf_x, rf_t, rf_s)
 
@@ -324,9 +324,9 @@ def main():
 
   # Read in data
   i = 0
-  sims = ['simA']
+  #sims = ['simA']
   # Uncomment below to tune on all sims
-  # sims = ['simA', 'simB', 'simC', 'simD', 'simE', 'simF']
+  sims = ['simA', 'simB', 'simC', 'simD', 'simE', 'simF']
   train_size = 20000
   val_size = 10000
   rf_x_allsims = {}
