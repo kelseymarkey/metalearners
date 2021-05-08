@@ -156,38 +156,38 @@ def tune_with_learners(train, test, n_iter=1000):
   # Sample n_iter parameter settings for each base learner
   # X learner
   params_X_mu0 = {'n_estimators': rng.choice(np.linspace(50, 500, 10), size=n_iter),
-                  'max_samples': rng.choice([0.1*(i+1) for i in range(10)], size=n_iter),
+                  'max_samples': rng.choice([0.1*(i+1) for i in range(9)], size=n_iter),
                   'max_features': rng.choice(range(1, len(X.columns)+1), size=n_iter),
                   'min_samples_leaf': rng.choice(range(1, 31), size=n_iter)}
   params_X_mu1 = {'n_estimators': rng.choice(np.linspace(50, 500, 10), size=n_iter),
-                  'max_samples': rng.choice([0.1*(i+1) for i in range(10)], size=n_iter),
+                  'max_samples': rng.choice([0.1*(i+1) for i in range(9)], size=n_iter),
                   'max_features': rng.choice(range(1, len(X.columns)+1), size=n_iter),
                   'min_samples_leaf': rng.choice(range(1, 31), size=n_iter)}
   params_X_tau0 = {'n_estimators': rng.choice(np.linspace(50, 500, 10), size=n_iter),
-                   'max_samples': rng.choice([0.1*(i+1) for i in range(10)], size=n_iter),
+                   'max_samples': rng.choice([0.1*(i+1) for i in range(9)], size=n_iter),
                    'max_features': rng.choice(range(1, len(X.columns)+1), size=n_iter),
                    'min_samples_leaf': rng.choice(range(1, 31), size=n_iter)}
   params_X_tau1 = {'n_estimators': rng.choice(np.linspace(50, 500, 10), size=n_iter),
-                   'max_samples': rng.choice([0.1*(i+1) for i in range(10)], size=n_iter),
+                   'max_samples': rng.choice([0.1*(i+1) for i in range(9)], size=n_iter),
                    'max_features': rng.choice(range(1, len(X.columns)+1), size=n_iter),
                    'min_samples_leaf': rng.choice(range(1, 31), size=n_iter)}
   params_X_g = {'n_estimators': rng.choice(np.linspace(50, 500, 10), size=n_iter),
-                   'max_samples': rng.choice([0.1*(i+1) for i in range(10)], size=n_iter),
+                   'max_samples': rng.choice([0.1*(i+1) for i in range(9)], size=n_iter),
                    'max_features': rng.choice(range(1, len(X.columns)+1), size=n_iter),
                    'min_samples_leaf': rng.choice(range(1, 31), size=n_iter)}                 
   #rf_prop_X = rng.choice([True, False], size=n_iter)
   # T learner
   params_T_mu0 = {'n_estimators': rng.choice(np.linspace(50, 500, 10), size=n_iter),
-                  'max_samples': rng.choice([0.1*(i+1) for i in range(10)], size=n_iter),
+                  'max_samples': rng.choice([0.1*(i+1) for i in range(9)], size=n_iter),
                   'max_features': rng.choice(range(1, len(X.columns)+1), size=n_iter),
                   'min_samples_leaf': rng.choice([1, 3, 5, 10, 30, 100], size=n_iter)}
   params_T_mu1 = {'n_estimators': rng.choice(np.linspace(50, 500, 10), size=n_iter),
-                  'max_samples': rng.choice([0.1*(i+1) for i in range(10)], size=n_iter),
+                  'max_samples': rng.choice([0.1*(i+1) for i in range(9)], size=n_iter),
                   'max_features': rng.choice(range(1, len(X.columns)+1), size=n_iter),
                   'min_samples_leaf': rng.choice([1, 3, 5, 10, 30, 100], size=n_iter)}
   # S learner
   params_S_mu = {'n_estimators': rng.choice(np.linspace(50, 500, 10), size=n_iter),
-                 'max_samples': rng.choice([0.1*(i+1) for i in range(10)], size=n_iter),
+                 'max_samples': rng.choice([0.1*(i+1) for i in range(9)], size=n_iter),
                  'max_features': rng.choice(range(1, len(X.columns)+1), size=n_iter),
                  'min_samples_leaf': rng.choice([1, 3, 5, 10, 30, 100], size=n_iter)}
 
@@ -314,7 +314,7 @@ def tune_with_learners(train, test, n_iter=1000):
                   for key in params_T_mu0.keys()}, 
           'mu1': {key : params_T_mu1[key][best_idx_T]\
                   for key in params_T_mu1.keys()}}
-  rf_s = {'mu_base_S': {key : params_S_mu[key][best_idx_S]\
+  rf_s = {'mu': {key : params_S_mu[key][best_idx_S]\
                         for key in params_S_mu.keys()}}
   return (rf_x, rf_t, rf_s)
 
@@ -324,9 +324,9 @@ def main():
 
   # Read in data
   i = 0
-  sims = ['simA']
+  #sims = ['simA']
   # Uncomment below to tune on all sims
-  # sims = ['simA', 'simB', 'simC', 'simD', 'simE', 'simF']
+  sims = ['simA', 'simB', 'simC', 'simD', 'simE', 'simF']
   train_size = 20000
   val_size = 10000
   rf_x_allsims = {}
