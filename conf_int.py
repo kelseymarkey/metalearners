@@ -6,7 +6,7 @@ Alene Rhea, May 2021
 
 Usage example: 
 python3 conf_int.py --sim A --outfile test --train_size 5000 \
---config_file ci_t_rf.json --hyperparams_file rf_t.json --B 5
+--config_file ci_t_rf.json --hyperparams_file rf_t_default.json --B 5
 
 To install varname:
 pip install -U varname
