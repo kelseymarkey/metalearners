@@ -8,9 +8,11 @@ import numpy as np
 import pandas as pd
 import re
 import json
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.ensemble import RandomForestClassifier
-from utils import strat_sample
+from functools import partial
+import utils.configClass
+from utils.utils import strat_sample, split_Xy_train_test
 
 '''
 Small run usage example: python learners.py --samples 3 --training_sizes 5000
@@ -265,6 +267,107 @@ def fit_get_mse_x(train, test, mu0_base, mu1_base, tau0_base, tau1_base, g_base,
     mse_pred = np.mean((tau_preds_gpred - test.tau)**2)
     
     return (mse_true, mse_pred, export_df, export_df_train)
+
+def fit_predict(train, test, config):
+
+    #data preprocessing
+    X_train, y_train, W_train, X_test = split_Xy_train_test(train, test)
+
+    if (config.metalearner=='T') or (config.metalearner=='S'):
+        fitted = fit_metalearner(X_train, y_train, W_train, X_test, config)
+        tau_preds = fitted.predict(X_test, export_preds=False)
+
+    elif config.metalearner=='X':
+        # Predict test set CATEs using predicted propensities
+        fitted, g_pred = fit_metalearner(X_train, y_train, W_train,
+                                         X_test, config)
+        tau_preds = fitted.predict(X=X_test, g=g_pred)
+    return tau_preds
+    
+
+def fit_metalearner(X_train, y_train, W_train, X_test, config):
+
+    '''
+    To be called by conf_int.py
+
+    Functionized and generalized method 
+    to initialize base learners and train metalearner.
+
+    Return predictions on test set
+    No need to calculate MSE
+
+    Could be wrapper around general intialize / train func(s);
+    with test set prediction added on at the end    
+    '''
+
+    # dictionary to match algo code to partial init call
+    # update LR item to match Tamar's IW branch
+    base_learners = {'rf': partial(RegressionForest, 
+                                   honest=True, random_state=42),
+                     'lr': LinearRegression,
+                     'logreg': partial(LogisticRegression, 
+                                        random_state=42),
+                     'rfc': partial(RandomForestClassifier, 
+                                   random_state=42)}
+                     
+    if config.metalearner == 'T':
+        
+        # Isolate necessary hyperparameters
+        mu0_params = config.mu_0.hyperparams
+        mu1_params = config.mu_1.hyperparams
+        
+        # Intialize base learners
+        mu0_base = base_learners[config.mu_0.algo](**mu0_params)
+        mu1_base = base_learners[config.mu_1.algo](**mu1_params)
+
+        # initialize and fit metalearner
+        T = t_learner(mu0_base=mu0_base, mu1_base=mu1_base)
+        T.fit(X=X_train, W=W_train, y=y_train)
+        return T
+ 
+    if config.metalearner == 'S':
+
+        # Isolate necessary hyperparameters
+        mu_params = config.mu.hyperparams
+        
+        # Intialize base learners
+        mu_base = base_learners[config.mu.algo](**mu_params)
+
+        #initialize and fit metalearner
+        S = s_learner(mu_base=mu_base)
+        X_W = pd.concat([X_train, W_train], axis=1)
+        S.fit(X_W=X_W, y=y_train)
+        return S
+        
+    if config.metalearner == 'X':
+
+        # Isolate necessary hyperparameters
+        mu0_params = config.mu_0.hyperparams
+        mu1_params = config.mu_1.hyperparams
+        tau0_params = config.tau_0.hyperparams
+        tau1_params = config.tau_1.hyperparams
+        g_params = config.g.hyperparams
+
+        # Intialize base learners
+        mu0_base = base_learners[config.mu_0.algo](**mu0_params)
+        mu1_base = base_learners[config.mu_1.algo](**mu1_params)
+        tau0_base = base_learners[config.tau_0.algo](**tau0_params)
+        tau1_base = base_learners[config.tau_0.algo](**tau1_params)
+        g_base = base_learners[config.g.algo](**g_params)
+
+        #fit g using training data and predict propensities
+        g_fit = g_base.fit(X=X_train, y=W_train)
+        g_pred = g_fit.predict_proba(X_test)[:, 1]
+        
+        # initialize metalearner
+        X_learner = x_learner(mu0_base=mu0_base, mu1_base=mu1_base, 
+                                tau0_base=tau0_base, tau1_base=tau1_base)
+
+        # Fit treatment and response estimators mu0 and  mu1
+        X_learner.fit(X=X_train, W=W_train, y=y_train, export_preds=False)
+
+        # return fitted X-learner and predicted propensities
+        return(X_learner, g_pred)
 
 
 def main(args):
