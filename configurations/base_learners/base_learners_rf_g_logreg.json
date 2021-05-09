@@ -1,0 +1,3 @@
+{"T": {"mu_0": "rf", "mu_1": "rf", "g": "logreg"},
+"S": {"mu": "rf"},
+"X":{"mu_0": "rf", "mu_1": "rf", "tau_0": "rf", "tau_1": "rf", "g": "logreg"}}

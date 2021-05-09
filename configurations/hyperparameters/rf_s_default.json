@@ -1,1 +1,6 @@
-{"mu": {"simA": {"n_estimators": 200, "min_samples_split": 15}, "simB": {"n_estimators": 300, "min_samples_split": 10}, "simC": {"n_estimators": 100, "min_samples_split": 10}, "simD": {"n_estimators": 200, "min_samples_split": 20}, "simE": {"n_estimators": 100, "min_samples_split": 15}, "simF": {"n_estimators": 300, "min_samples_split": 20}}}
+{"mu": {"simA": {},
+          "simB": {}, 
+          "simC": {}, 
+          "simD": {}, 
+          "simE": {}, 
+          "simF": {}}}
