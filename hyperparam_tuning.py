@@ -10,7 +10,7 @@ from sklearn.model_selection import RandomizedSearchCV
 from sklearn.ensemble import RandomForestClassifier
 import time
 from tqdm import tqdm
-from utils import *
+from utils.utils import *
 
 # def tune_individually(train, n_iter=1000):
 #   '''
