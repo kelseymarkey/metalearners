@@ -57,7 +57,7 @@ def fit_predict_mse(train, test, config, export_preds):
             export_df_test['tau_true'] = test.tau
             export_df_test['y_true'] = test.Y
             export_df_test['W'] = test.treatment
-            export_df['pscore_true'] = test.pscore
+            export_df_test['pscore_true'] = test.pscore
 
             tau_preds = export_df_test.tau_preds
         else:
