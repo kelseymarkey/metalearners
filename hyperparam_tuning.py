@@ -331,7 +331,7 @@ def main():
           return object.item()
     # Uncomment next line and comment line after that to tune individually
     # rf_x, rf_t, rf_s = tune_individually(train, n_iter=1000)
-    rf_x, rf_t, rf_s = tune_with_learners(train, val, sim, n_iter=2)
+    rf_x, rf_t, rf_s = tune_with_learners(train, val, sim, n_iter=200)
     print(rf_x, rf_t, rf_s)
     
     # add best params to allsims dictionaries
