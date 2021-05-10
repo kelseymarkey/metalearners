@@ -107,7 +107,7 @@ def fit_metalearner(X_train, y_train, W_train, X_test,
     # dictionary to match algo code to partial init call
     # update LR item to match Tamar's IW branch
     base_learners = {'rf': partial(RegressionForest, 
-                                   honest=True, n_jobs=4, random_state=42),
+                                   honest=True, inference=False, n_jobs=4, random_state=42),
                      'lr': LinearRegression,
                      'logreg': partial(LogisticRegression,
                                         n_jobs=4,
