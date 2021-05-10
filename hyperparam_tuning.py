@@ -286,15 +286,15 @@ def tune_with_learners(train, val, sim, n_iter=1000):
   best_idx_X = np.argmax(np.asarray(mse_list_X))
   best_idx_T = np.argmax(np.asarray(mse_list_T))
   best_idx_S = np.argmax(np.asarray(mse_list_S))
-  rf_x = {'mu0': {key : params_X_mu0[key][best_idx_pred_X]\
+  rf_x = {'mu0': {key : params_X_mu0[key][best_idx_X]\
                   for key in params_X_mu0.keys()}, 
-          'mu1': {key : params_X_mu1[key][best_idx_pred_X]\
+          'mu1': {key : params_X_mu1[key][best_idx_X]\
                   for key in params_X_mu1.keys()}, 
-          'tau0': {key : params_X_tau0[key][best_idx_pred_X]\
+          'tau0': {key : params_X_tau0[key][best_idx_X]\
                    for key in params_X_tau0.keys()}, 
-          'tau1': {key : params_X_tau1[key][best_idx_pred_X]\
+          'tau1': {key : params_X_tau1[key][best_idx_X]\
                    for key in params_X_tau1.keys()}, 
-          'g': {key : params_X_tau1[key][best_idx_pred_X]\
+          'g': {key : params_X_tau1[key][best_idx_X]\
                    for key in params_X_tau1.keys()}}
   rf_t = {'mu0': {key : params_T_mu0[key][best_idx_T]\
                   for key in params_T_mu0.keys()}, 
