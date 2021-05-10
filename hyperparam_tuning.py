@@ -141,7 +141,8 @@ def tune_with_learners(train, val, sim, n_iter=1000):
 
   Inputs:
     train: pd.DataFrame with training data
-    test: pd.DataFrame with test data
+    val: pd.DataFrame with validation data
+    sim: simulation
     n_iter: number of hyperparameter settings to test for each metalearner
       default value is 1000
   Returns:
@@ -154,13 +155,12 @@ def tune_with_learners(train, val, sim, n_iter=1000):
   rng = np.random.default_rng(42)
 
   # Initialize meta_base_dict with all rf
-  meta_base_dict = {'T': {'mu_0': 'rf', 'mu_1': 'rf', 'g': 'rfc'}, # SHOULD THIS HAVE G? 
+  meta_base_dict = {'T': {'mu_0': 'rf', 'mu_1': 'rf', 'g': 'rfc'},
                     'S': {'mu': 'rf'},
                     'X': {'mu_0': 'rf', 'mu_1': 'rf', 'tau_0': 'rf', 'tau_1': 'rf', 'g': 'rfc'}}
 
   # Sample n_iter parameter settings for each base learner
   # X learner
-  # CONVERT MAX SAMPLES TO INT INSTEAD OF FLOAT!! 
   params_X_mu0 = {'n_estimators': rng.choice(np.arange(48, 496, 16, dtype=int), size=n_iter),
                   'max_samples': np.around(rng.choice([0.1*(i+1) for i in range(9)], size=n_iter), decimals=1),
                   'max_features': rng.choice(range(1, len(X.columns)+1), size=n_iter),
@@ -181,7 +181,6 @@ def tune_with_learners(train, val, sim, n_iter=1000):
                    'max_samples': np.around(rng.choice([0.1*(i+1) for i in range(9)], size=n_iter), decimals=1),
                    'max_features': rng.choice(range(1, len(X.columns)+1), size=n_iter),
                    'min_samples_leaf': rng.choice(range(1, 31), size=n_iter)}                 
-  #rf_prop_X = rng.choice([True, False], size=n_iter)
   # T learner
   params_T_mu0 = {'n_estimators': rng.choice(np.arange(48, 496, 16, dtype=int), size=n_iter),
                   'max_samples': np.around(rng.choice([0.1*(i+1) for i in range(9)], size=n_iter), decimals=1),
@@ -237,18 +236,15 @@ def tune_with_learners(train, val, sim, n_iter=1000):
     config = config_from_json(meta='X', sim=sim[-1], meta_base_dict=meta_base_dict, 
                                                 hyperparams=X_dict)
     mse_X, _ = fit_predict_mse(train, val, config, export_preds=False)
-    print('mse:', mse_X)
-                    
-    #rf_prop = rf_prop_X[i]
+
     mse_list_X.append(mse_X)
     print('Finished fitting X learner in ', str(time.time()-start_x), ' s')
 
 
     # T learner
     start_t = time.time()
-    # Make empty X hyperparam dictionary to populate
+    # Make empty T hyperparam dictionary to populate
     print('Tuning T learner')
-    # SHOULD THIS HAVE G? 
     T_dict = {"mu_0": {"simA": {}, "simB": {}, "simC": {}, "simD": {}, "simE": {}, "simF": {}}, 
               "mu_1": {"simA": {}, "simB": {}, "simC": {}, "simD": {}, "simE": {}, "simF": {}},
               "g": {"simA": {}, "simB": {}, "simC": {}, "simD": {}, "simE": {}, "simF": {}}}
@@ -264,7 +260,6 @@ def tune_with_learners(train, val, sim, n_iter=1000):
     config = config_from_json(meta='T', sim=sim[-1], meta_base_dict=meta_base_dict, 
                                                 hyperparams=T_dict)
     mse_T, _ = fit_predict_mse(train, val, config, export_preds=False)
-    print('mse:', mse_T)
 
     mse_list_T.append(mse_T)
     print('Finished fitting T learner in ', str(time.time()-start_t), ' s')
@@ -272,6 +267,7 @@ def tune_with_learners(train, val, sim, n_iter=1000):
 
     # S learner
     start_s = time.time()
+    # Make empty S hyperparam dictionary to populate
     print('Tuning S learner')
     S_dict = {"mu": {"simA": {}, "simB": {}, "simC": {}, "simD": {}, "simE": {}, "simF": {}}}
 
@@ -282,14 +278,12 @@ def tune_with_learners(train, val, sim, n_iter=1000):
     config = config_from_json(meta='S', sim=sim[-1], meta_base_dict=meta_base_dict, 
                                                 hyperparams=S_dict)
     mse_S, _ = fit_predict_mse(train, val, config, export_preds=False)
-    print('mse:', mse_S)
 
     mse_list_S.append(mse_S)
     print('Finished fitting S learner in ', str(time.time()-start_s), ' s')
 
   # Find best params
-  best_idx_true_X = np.argmax(np.asarray(mse_true_list_X))
-  best_idx_pred_X = np.argmax(np.asarray(mse_pred_list_X))
+  best_idx_X = np.argmax(np.asarray(mse_list_X))
   best_idx_T = np.argmax(np.asarray(mse_list_T))
   best_idx_S = np.argmax(np.asarray(mse_list_S))
   rf_x = {'mu0': {key : params_X_mu0[key][best_idx_pred_X]\
@@ -305,7 +299,8 @@ def tune_with_learners(train, val, sim, n_iter=1000):
   rf_t = {'mu0': {key : params_T_mu0[key][best_idx_T]\
                   for key in params_T_mu0.keys()}, 
           'mu1': {key : params_T_mu1[key][best_idx_T]\
-                  for key in params_T_mu1.keys()}}
+                  for key in params_T_mu1.keys()},
+          'g': {}}
   rf_s = {'mu': {key : params_S_mu[key][best_idx_S]\
                         for key in params_S_mu.keys()}}
   return (rf_x, rf_t, rf_s)
@@ -316,9 +311,7 @@ def main():
 
   # Read in data
   i = 0
-  sims = ['simA']
-  # Uncomment below to tune on all sims
-  # sims = ['simA', 'simB', 'simC', 'simD', 'simE', 'simF']
+  sims = ['simA', 'simB', 'simC', 'simD', 'simE', 'simF']
   train_size = 20000
   val_size = 10000
   rf_x_allsims = {}
@@ -338,7 +331,7 @@ def main():
           return object.item()
     # Uncomment next line and comment line after that to tune individually
     # rf_x, rf_t, rf_s = tune_individually(train, n_iter=1000)
-    rf_x, rf_t, rf_s = tune_with_learners(train, val, sim, n_iter=100)
+    rf_x, rf_t, rf_s = tune_with_learners(train, val, sim, n_iter=2)
     print(rf_x, rf_t, rf_s)
     
     # add best params to allsims dictionaries
