@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from learners import fit_get_mse_s, fit_get_mse_t, fit_get_mse_x
+from learners import fit_predict_mse
 from econml.grf import RegressionForest
 from sklearn import clone
 import os, pathlib
@@ -135,7 +135,7 @@ from utils.utils import *
 #   print('total execution time ', str(time.time() - start))
 #   return (rf_x, rf_t, rf_s)
 
-def tune_with_learners(train, test, n_iter=1000):
+def tune_with_learners(train, val, sim, n_iter=1000):
   '''
   Tune hyperparameters for base learners by measuring performance in metalearners
 
@@ -152,146 +152,138 @@ def tune_with_learners(train, test, n_iter=1000):
   start = time.time()
   X = train.drop(columns=['treatment', 'Y', 'tau', 'pscore'])
   rng = np.random.default_rng(42)
-  
+
+  # Initialize meta_base_dict with all rf
+  meta_base_dict = {'T': {'mu_0': 'rf', 'mu_1': 'rf', 'g': 'rfc'}, # SHOULD THIS HAVE G? 
+                    'S': {'mu': 'rf'},
+                    'X': {'mu_0': 'rf', 'mu_1': 'rf', 'tau_0': 'rf', 'tau_1': 'rf', 'g': 'rfc'}}
+
   # Sample n_iter parameter settings for each base learner
   # X learner
-  params_X_mu0 = {'n_estimators': rng.choice(np.linspace(50, 500, 10), size=n_iter),
-                  'max_samples': rng.choice([0.1*(i+1) for i in range(9)], size=n_iter),
+  # CONVERT MAX SAMPLES TO INT INSTEAD OF FLOAT!! 
+  params_X_mu0 = {'n_estimators': rng.choice(np.arange(48, 496, 16, dtype=int), size=n_iter),
+                  'max_samples': np.around(rng.choice([0.1*(i+1) for i in range(9)], size=n_iter), decimals=1),
                   'max_features': rng.choice(range(1, len(X.columns)+1), size=n_iter),
                   'min_samples_leaf': rng.choice(range(1, 31), size=n_iter)}
-  params_X_mu1 = {'n_estimators': rng.choice(np.linspace(50, 500, 10), size=n_iter),
-                  'max_samples': rng.choice([0.1*(i+1) for i in range(9)], size=n_iter),
+  params_X_mu1 = {'n_estimators': rng.choice(np.arange(48, 496, 16, dtype=int), size=n_iter),
+                  'max_samples': np.around(rng.choice([0.1*(i+1) for i in range(9)], size=n_iter), decimals=1),
                   'max_features': rng.choice(range(1, len(X.columns)+1), size=n_iter),
                   'min_samples_leaf': rng.choice(range(1, 31), size=n_iter)}
-  params_X_tau0 = {'n_estimators': rng.choice(np.linspace(50, 500, 10), size=n_iter),
+  params_X_tau0 = {'n_estimators': rng.choice(np.arange(48, 496, 16, dtype=int), size=n_iter),
                    'max_samples': rng.choice([0.1*(i+1) for i in range(9)], size=n_iter),
                    'max_features': rng.choice(range(1, len(X.columns)+1), size=n_iter),
                    'min_samples_leaf': rng.choice(range(1, 31), size=n_iter)}
-  params_X_tau1 = {'n_estimators': rng.choice(np.linspace(50, 500, 10), size=n_iter),
-                   'max_samples': rng.choice([0.1*(i+1) for i in range(9)], size=n_iter),
+  params_X_tau1 = {'n_estimators': rng.choice(np.arange(48, 496, 16, dtype=int), size=n_iter),
+                   'max_samples': np.around(rng.choice([0.1*(i+1) for i in range(9)], size=n_iter), decimals=1),
                    'max_features': rng.choice(range(1, len(X.columns)+1), size=n_iter),
                    'min_samples_leaf': rng.choice(range(1, 31), size=n_iter)}
-  params_X_g = {'n_estimators': rng.choice(np.linspace(50, 500, 10), size=n_iter),
-                   'max_samples': rng.choice([0.1*(i+1) for i in range(9)], size=n_iter),
+  params_X_g = {'n_estimators': rng.choice(np.arange(48, 496, 16, dtype=int), size=n_iter),
+                   'max_samples': np.around(rng.choice([0.1*(i+1) for i in range(9)], size=n_iter), decimals=1),
                    'max_features': rng.choice(range(1, len(X.columns)+1), size=n_iter),
                    'min_samples_leaf': rng.choice(range(1, 31), size=n_iter)}                 
   #rf_prop_X = rng.choice([True, False], size=n_iter)
   # T learner
-  params_T_mu0 = {'n_estimators': rng.choice(np.linspace(50, 500, 10), size=n_iter),
-                  'max_samples': rng.choice([0.1*(i+1) for i in range(9)], size=n_iter),
+  params_T_mu0 = {'n_estimators': rng.choice(np.arange(48, 496, 16, dtype=int), size=n_iter),
+                  'max_samples': np.around(rng.choice([0.1*(i+1) for i in range(9)], size=n_iter), decimals=1),
                   'max_features': rng.choice(range(1, len(X.columns)+1), size=n_iter),
                   'min_samples_leaf': rng.choice([1, 3, 5, 10, 30, 100], size=n_iter)}
-  params_T_mu1 = {'n_estimators': rng.choice(np.linspace(50, 500, 10), size=n_iter),
-                  'max_samples': rng.choice([0.1*(i+1) for i in range(9)], size=n_iter),
+  params_T_mu1 = {'n_estimators': rng.choice(np.arange(48, 496, 16, dtype=int), size=n_iter),
+                  'max_samples': np.around(rng.choice([0.1*(i+1) for i in range(9)], size=n_iter), decimals=1),
                   'max_features': rng.choice(range(1, len(X.columns)+1), size=n_iter),
                   'min_samples_leaf': rng.choice([1, 3, 5, 10, 30, 100], size=n_iter)}
   # S learner
-  params_S_mu = {'n_estimators': rng.choice(np.linspace(50, 500, 10), size=n_iter),
-                 'max_samples': rng.choice([0.1*(i+1) for i in range(9)], size=n_iter),
+  params_S_mu = {'n_estimators': rng.choice(np.arange(48, 496, 16, dtype=int), size=n_iter),
+                 'max_samples': np.around(rng.choice([0.1*(i+1) for i in range(9)], size=n_iter), decimals=1),
                  'max_features': rng.choice(range(1, len(X.columns)+1), size=n_iter),
                  'min_samples_leaf': rng.choice([1, 3, 5, 10, 30, 100], size=n_iter)}
 
   # Find best configuration for each learner
-  mse_true_list_X = []
-  mse_pred_list_X = []
+  mse_list_X = []
   mse_list_T = []
   mse_list_S = []
 
   for i in tqdm(range(n_iter)):
     # X learner
     start_x = time.time()
+
+    # Make empty X hyperparam dictionary to populate
     print('Tuning X learner')
-    print('mu0 params: n_estimators =', params_X_mu0['n_estimators'][i],
-      ', min_samples_leaf =', params_X_mu0['min_samples_leaf'][i], 
-      ', max_features =', params_X_mu0['max_features'][i], 
-      ', max_samples =', params_X_mu0['max_samples'][i])
-    print('mu1 params: n_estimators =', params_X_mu1['n_estimators'][i],
-      ', min_samples_leaf =', params_X_mu1['min_samples_leaf'][i], 
-      ', max_features =', params_X_mu1['max_features'][i], 
-      ', max_samples =', params_X_mu1['max_samples'][i])
-    print('tau0 params: n_estimators =', params_X_tau0['n_estimators'][i],
-      ', min_samples_leaf =', params_X_tau0['min_samples_leaf'][i], 
-      ', max_features =', params_X_tau0['max_features'][i], 
-      ', max_samples =', params_X_tau0['max_samples'][i])
-    print('tau1 params: n_estimators =', params_X_tau1['n_estimators'][i],
-      ', min_samples_leaf =', params_X_tau1['min_samples_leaf'][i], 
-      ', max_features =', params_X_tau1['max_features'][i], 
-      ', max_samples =', params_X_tau1['max_samples'][i])
-    #print('rf_prop =', rf_prop_X[i])
-    print('g params: n_estimators =', params_X_g['n_estimators'][i],
-      ', min_samples_leaf =', params_X_g['min_samples_leaf'][i], 
-      ', max_features =', params_X_g['max_features'][i], 
-      ', max_samples =', params_X_g['max_samples'][i])
-    mu0_base_X = RegressionForest(n_estimators=int(params_X_mu0['n_estimators'][i]),
-      min_samples_leaf=params_X_mu0['min_samples_leaf'][i], 
-      max_features=params_X_mu0['max_features'][i], 
-      max_samples=params_X_mu0['max_samples'][i],
-      honest=True, inference=False, n_jobs=4, random_state=42)
-    mu1_base_X = RegressionForest(n_estimators=int(params_X_mu1['n_estimators'][i]), 
-      min_samples_leaf=params_X_mu1['min_samples_leaf'][i], 
-      max_features=params_X_mu1['max_features'][i], 
-      max_samples=params_X_mu1['max_samples'][i],
-      honest=True, inference=False, n_jobs=4, random_state=42)
-    tau0_base_X = RegressionForest(n_estimators=int(params_X_tau0['n_estimators'][i]), 
-      min_samples_leaf=params_X_tau0['min_samples_leaf'][i], 
-      max_features=params_X_tau0['max_features'][i], 
-      max_samples=params_X_tau0['max_samples'][i],
-      honest=True, inference=False, n_jobs=4, random_state=42)
-    tau1_base_X = RegressionForest(n_estimators=int(params_X_tau1['n_estimators'][i]), 
-      min_samples_leaf=params_X_tau1['min_samples_leaf'][i], 
-      max_features=params_X_tau1['max_features'][i], 
-      max_samples=params_X_tau1['max_samples'][i],
-      honest=True, inference=False, n_jobs=4, random_state=42)
-    g_base_X = RandomForestClassifier(n_estimators=int(params_X_g['n_estimators'][i]), 
-      min_samples_leaf=params_X_g['min_samples_leaf'][i], 
-      max_features=params_X_g['max_features'][i], 
-      max_samples=params_X_g['max_samples'][i],
-      n_jobs=4, random_state=42)  
+    X_dict = {"mu_0": {"simA": {}, "simB": {}, "simC": {}, "simD": {}, "simE": {}, "simF": {}}, 
+              "mu_1": {"simA": {}, "simB": {}, "simC": {}, "simD": {}, "simE": {}, "simF": {}}, 
+              "tau_0": {"simA": {}, "simB": {}, "simC": {}, "simD": {}, "simE": {}, "simF": {}}, 
+              "tau_1": {"simA": {}, "simB": {}, "simC": {}, "simD": {}, "simE": {}, "simF": {}}, 
+              "g": {"simA": {}, "simB": {}, "simC": {}, "simD": {}, "simE": {}, "simF": {}}}
+
+    ith_mu0_items = {val: params_X_mu0[val][i] for val in params_X_mu0}
+    print('mu0 params:', ith_mu0_items)
+    X_dict['mu_0'][sim] = ith_mu0_items
+    
+    ith_mu1_items = {val: params_X_mu1[val][i] for val in params_X_mu1}
+    print('mu1 params:', ith_mu1_items)
+    X_dict['mu_1'][sim] = ith_mu1_items
+    
+    ith_tau0_items = {val: params_X_tau0[val][i] for val in params_X_tau0}
+    print('tau0 params:', ith_tau0_items)
+    X_dict['tau_0'][sim] = ith_tau0_items
+    
+    ith_tau1_items = {val: params_X_tau1[val][i] for val in params_X_tau1}
+    print('tau1 params:', ith_tau1_items)
+    X_dict['tau_1'][sim] = ith_tau1_items
+    
+    ith_g_items = {val: params_X_g[val][i] for val in params_X_g}
+    print('g params:', ith_g_items)
+    X_dict['g'][sim] = ith_g_items
+
+    config = config_from_json(meta='X', sim=sim[-1], meta_base_dict=meta_base_dict, 
+                                                hyperparams=X_dict)
+    mse_X, _ = fit_predict_mse(train, val, config, export_preds=False)
+    print('mse:', mse_X)
+                    
     #rf_prop = rf_prop_X[i]
-    mse_true_X, mse_pred_X, _, _ = fit_get_mse_x(train, test, mu0_base_X, mu1_base_X,
-      tau0_base_X, tau1_base_X, g_base_X)
-    mse_true_list_X.append(mse_true_X)
-    mse_pred_list_X.append(mse_pred_X)
+    mse_list_X.append(mse_X)
     print('Finished fitting X learner in ', str(time.time()-start_x), ' s')
+
 
     # T learner
     start_t = time.time()
+    # Make empty X hyperparam dictionary to populate
     print('Tuning T learner')
-    print('mu0 params: n_estimators =', params_T_mu0['n_estimators'][i],
-      ', min_samples_leaf =', params_T_mu0['min_samples_leaf'][i], 
-      ', max_features =', params_T_mu0['max_features'][i], 
-      ', max_samples =', params_T_mu0['max_samples'][i])
-    print('mu1 params: n_estimators =', params_X_mu1['n_estimators'][i],
-      ', min_samples_leaf =', params_T_mu1['min_samples_leaf'][i], 
-      ', max_features =', params_T_mu1['max_features'][i], 
-      ', max_samples =', params_T_mu1['max_samples'][i])
-    mu0_base_T = RegressionForest(n_estimators=int(params_T_mu0['n_estimators'][i]), 
-      min_samples_leaf=params_T_mu0['min_samples_leaf'][i], 
-      max_features=params_T_mu0['max_features'][i], 
-      max_samples=params_T_mu0['max_samples'][i],
-      honest=True, inference=False, n_jobs=4, random_state=42)
-    mu1_base_T = RegressionForest(n_estimators=int(params_T_mu1['n_estimators'][i]), 
-      min_samples_leaf=params_T_mu1['min_samples_leaf'][i], 
-      max_features=params_T_mu1['max_features'][i], 
-      max_samples=params_T_mu1['max_samples'][i],
-      honest=True, inference=False, n_jobs=4, random_state=42)
-    mse_T, _ = fit_get_mse_t(train, test, mu0_base_T, mu1_base_T)
+    # SHOULD THIS HAVE G? 
+    T_dict = {"mu_0": {"simA": {}, "simB": {}, "simC": {}, "simD": {}, "simE": {}, "simF": {}}, 
+              "mu_1": {"simA": {}, "simB": {}, "simC": {}, "simD": {}, "simE": {}, "simF": {}},
+              "g": {"simA": {}, "simB": {}, "simC": {}, "simD": {}, "simE": {}, "simF": {}}}
+
+    ith_mu0_items = {val: params_T_mu0[val][i] for val in params_T_mu0}
+    print('mu0 params:', ith_mu0_items)
+    T_dict['mu_0'][sim] = ith_mu0_items
+    
+    ith_mu1_items = {val: params_T_mu1[val][i] for val in params_T_mu1}
+    print('mu1 params:', ith_mu1_items)
+    T_dict['mu_1'][sim] = ith_mu1_items
+
+    config = config_from_json(meta='T', sim=sim[-1], meta_base_dict=meta_base_dict, 
+                                                hyperparams=T_dict)
+    mse_T, _ = fit_predict_mse(train, val, config, export_preds=False)
+    print('mse:', mse_T)
+
     mse_list_T.append(mse_T)
     print('Finished fitting T learner in ', str(time.time()-start_t), ' s')
+
 
     # S learner
     start_s = time.time()
     print('Tuning S learner')
-    print('mu params: n_estimators =', params_S_mu['n_estimators'][i],
-      ', min_samples_leaf =', params_S_mu['min_samples_leaf'][i], 
-      ', max_features =', params_S_mu['max_features'][i], 
-      ', max_samples =', params_S_mu['max_samples'][i])
-    mu_base_S = RegressionForest(n_estimators=int(params_S_mu['n_estimators'][i]), 
-      min_samples_leaf=params_S_mu['min_samples_leaf'][i], 
-      max_features=params_S_mu['max_features'][i], 
-      max_samples=params_S_mu['max_samples'][i],
-      honest=True, inference=False, n_jobs=4, random_state=42)
-    mse_S, _ = fit_get_mse_s(train, test, mu_base_S)
+    S_dict = {"mu": {"simA": {}, "simB": {}, "simC": {}, "simD": {}, "simE": {}, "simF": {}}}
+
+    ith_mu_items = {val: params_S_mu[val][i] for val in params_S_mu}
+    print('mu params:', ith_mu_items)
+    S_dict['mu'][sim] = ith_mu_items
+    
+    config = config_from_json(meta='S', sim=sim[-1], meta_base_dict=meta_base_dict, 
+                                                hyperparams=S_dict)
+    mse_S, _ = fit_predict_mse(train, val, config, export_preds=False)
+    print('mse:', mse_S)
+
     mse_list_S.append(mse_S)
     print('Finished fitting S learner in ', str(time.time()-start_s), ' s')
 
@@ -324,9 +316,9 @@ def main():
 
   # Read in data
   i = 0
-  #sims = ['simA']
+  sims = ['simA']
   # Uncomment below to tune on all sims
-  sims = ['simA', 'simB', 'simC', 'simD', 'simE', 'simF']
+  # sims = ['simA', 'simB', 'simC', 'simD', 'simE', 'simF']
   train_size = 20000
   val_size = 10000
   rf_x_allsims = {}
@@ -346,7 +338,7 @@ def main():
           return object.item()
     # Uncomment next line and comment line after that to tune individually
     # rf_x, rf_t, rf_s = tune_individually(train, n_iter=1000)
-    rf_x, rf_t, rf_s = tune_with_learners(train, val, n_iter=100)
+    rf_x, rf_t, rf_s = tune_with_learners(train, val, sim, n_iter=100)
     print(rf_x, rf_t, rf_s)
     
     # add best params to allsims dictionaries
