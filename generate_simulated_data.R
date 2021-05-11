@@ -17,6 +17,8 @@ parser$add_argument('--n_train', type="integer", default=300000,
                     help="Number of items in the training set")
 parser$add_argument('--n_test', type="integer", default=100000,
                     help="Number of items in the test set")
+parser$add_argument("--extra_cols", action='store_true', 
+                    help="Whether to save additional unobserved columns in separate file (for data gen assumption checking)")
 
 args <- parser$parse_args()
 
@@ -122,6 +124,7 @@ if(args$sim=='A'){
              paste(working_sims, collapse=', '), ")", sep=''))
 }
 
+
 # Save train and test to dataframes
 sim_train <-cbind(sim$feat_tr,
                    treatment = sim$W_tr,
@@ -137,11 +140,29 @@ sim_test <-cbind(sim$feat_te,
 
 # save train and test dataframes to parquet
 file_train = here('data', paste('sim', args$sim, sep=''),
-                  paste('samp', args$samp, '_train.parquet', sep='')
-                  )
+                  paste('samp', args$samp, '_train.parquet', sep=''))
 write_parquet(sim_train, file_train)
 
 file_test = here('data', paste('sim', args$sim, sep=''),
-            paste('samp', args$samp, '_test.parquet', sep='')
-            )
+            paste('samp', args$samp, '_test.parquet', sep=''))
 write_parquet(sim_test, file_test)
+
+if (args$extra_cols){
+  # Create DFs to hold "extra" unobserved columns
+  train_extra <- data.frame(Y0 = sim$Y0_tr,
+                            Y1 = sim$Y1_tr,
+                            confounder = sim$confounder_tr)
+  test_extra <- data.frame(Y0 = sim$Y0_te,
+                           Y1 = sim$Y1_te,
+                           confounder = sim$confounder_te)
+  
+  # Save to data folder
+  file_train_extra = here('data', paste('sim', args$sim, sep=''),
+                          paste('samp', args$samp, '_train_extra.parquet', 
+                                sep=''))
+  file_test_extra = here('data', paste('sim', args$sim, sep=''),
+                          paste('samp', args$samp, '_test_extra.parquet', 
+                                sep=''))
+  write_parquet(train_extra, file_train_extra)
+  write_parquet(test_extra, file_test_extra)
+}

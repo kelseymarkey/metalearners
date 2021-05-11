@@ -187,8 +187,8 @@ simulate_causal_experiment <- function(ntrain = nrow(given_features),
              feat_distribution,
              given_features) {
       # this is the base creator, which is called by all other setups:
-      tau <- function(feat, confounder) {
-        as.numeric(m_t_truth(feat, confounder) - m_c_truth(feat))
+      tau <- function(Y1, Y0) {
+        as.numeric(Y1 - Y0)
       }
       if (is.null(given_features)) {
         given_features_fkt <- function(n, dim) {
@@ -222,13 +222,13 @@ simulate_causal_experiment <- function(ntrain = nrow(given_features),
         nn <- nrow(feat)
         return(rbinom(nn, 1, Pscore))
       }
-      getYobs <- function(feat, W, confounder) {
-        nn <- nrow(feat)
+      getYobs <- function(Y1, Y0, W) {
+        nn <- length(W)
         return(ifelse(
           W == 1,
-          m_t_truth(feat, confounder) + rnorm(nn, 0, 1),
+          Y1 + rnorm(nn, 0, 1),
           # treated
-          m_c_truth(feat) + rnorm(nn, 0, 1)   # control
+          Y0 + rnorm(nn, 0, 1)   # control
         ))
       }
       
@@ -252,8 +252,10 @@ simulate_causal_experiment <- function(ntrain = nrow(given_features),
       # generate unobserved confounder; only used for simF
       confounder_tr <- rnorm(ntrain, 0, 1)
       Pscore_tr <- getPscore(feat_tr_numeric, confounder_tr)
+      Y1_tr <- m_t_truth(feat_tr_numeric, confounder_tr)
+      Y0_tr <- m_c_truth(feat_tr_numeric)
       W_tr <- getW(Pscore_tr, feat_tr_numeric)
-      Yobs_tr <- getYobs(feat_tr_numeric, W_tr, confounder_tr)
+      Yobs_tr <- getYobs(Y1_tr, Y0_tr, W_tr)
       if (!is.null(trainseed)) {
         .Random.seed <- current_seed  # sets back the current random stage
       }
@@ -272,8 +274,10 @@ simulate_causal_experiment <- function(ntrain = nrow(given_features),
       # generate unobserved confounder; only used for simF
       confounder_te <- rnorm(ntest, 0, 1)
       Pscore_te <- getPscore(feat_te_numeric, confounder_te)
+      Y1_te <- m_t_truth(feat_te_numeric, confounder_te)
+      Y0_te <- m_c_truth(feat_te_numeric)
       W_te <- getW(Pscore_te, feat_te_numeric)
-      Yobs_te <- getYobs(feat_te_numeric, W_te, confounder_te)
+      Yobs_te <- getYobs(Y1_te, Y0_te, W_te)
       if (!is.null(testseed)) {
         .Random.seed <- current_seed  # sets back the current random stage
       }
@@ -283,13 +287,19 @@ simulate_causal_experiment <- function(ntrain = nrow(given_features),
           feat_te = feat_te,
           Pscore_te = Pscore_te,
           W_te = W_te,
-          tau_te = tau(feat_te_numeric, confounder_te),
+          tau_te = tau(Y1_te, Y0_te),
           Yobs_te = Yobs_te,
           feat_tr = feat_tr,
           Pscore_tr = Pscore_tr,
           W_tr = W_tr,
-          tau_tr = tau(feat_tr_numeric, confounder_tr),
-          Yobs_tr = Yobs_tr
+          tau_tr = tau(Y1_tr, Y0_tr),
+          Yobs_tr = Yobs_tr,
+          confounder_tr = confounder_tr,
+          confounder_te = confounder_te,
+          Y1_tr = Y1_tr,
+          Y0_tr = Y0_tr,
+          Y1_te = Y1_te,
+          Y0_te = Y0_te
         )
       )
     }
