@@ -26,11 +26,17 @@ do
 	    # Create necessary directory
 	    mkdir -p "data/sim${sim}"
 
+		# Generate 1st sample and save extra columns
+		Rscript generate_simulated_data.R --sim $sim --samp 1 \
+		--n_train $train_size --n_test $n_test --extra_cols
+
+		echo "     Finished generating 1/$n_samples samples of sim $sim "
+
 	    # Initialize counter
-	    i=1
+	    i=2
 	    while [ $i -le $n_samples ]
 	    do
-	        # Generate data
+	        # Generate data for all other samples (no extra cols)
 	        Rscript generate_simulated_data.R --sim $sim --samp $i \
 	        --n_train $train_size --n_test $n_test
 
