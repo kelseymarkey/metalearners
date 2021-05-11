@@ -113,19 +113,10 @@ if(args$sim=='A'){
     ntest = n_test,
     feat_distribution = "unif",
     dim = 20,
-    pscore='osSparse1Beta',
+    pscore='simF',
     mu0='simD',
-    tau='simA' # choosing simple CATE for now
+    tau='simF'
   )
-  
-  # Get beta
-  beta_tr <- (4*sim$Pscore_tr)-1
-  beta_te <- (4*sim$Pscore_te)-1
-  
-  # Augment tau with beta
-  sim$tau_tr <- sim$tau_tr + beta_tr
-  sim$tau_te <- sim$tau_te + beta_te
-  
 } else {
   stop(paste("Invalid simulation name. --sim must be one of: (",
              paste(working_sims, collapse=', '), ")", sep=''))
