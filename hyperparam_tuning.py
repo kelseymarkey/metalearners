@@ -311,7 +311,8 @@ def main():
 
   # Read in data
   i = 0
-  sims = ['simA', 'simB', 'simC', 'simD', 'simE', 'simF']
+  #sims = ['simA', 'simB', 'simC', 'simD', 'simE', 'simF']
+  sims = ['simF']
   train_size = 20000
   val_size = 10000
   rf_x_allsims = {}
@@ -336,27 +337,27 @@ def main():
     
     # add best params to allsims dictionaries
     for key, val in rf_x.items():
-      if sim=='simA':
+      if sim=='simF':
         rf_x_allsims[key]={}
         rf_x_allsims[key][sim] = val
       else:
         rf_x_allsims[key][sim] = val
     for key, val in rf_t.items():
-      if sim=='simA':
+      if sim=='simF':
         rf_t_allsims[key] = {}
         rf_t_allsims[key][sim] = val
       else:
         rf_t_allsims[key][sim] = val
     for key, val in rf_s.items():
-      if sim=='simA':
+      if sim=='simF':
         rf_s_allsims[key] = {}
         rf_s_allsims[key][sim] = val
       else:
         rf_s_allsims[key][sim] = val
 
-  filepath_x = base_repo_dir / 'configurations/hyperparameters/rf_x_tuned.json'
-  filepath_t = base_repo_dir / 'configurations/hyperparameters/rf_t_tuned.json'
-  filepath_s = base_repo_dir / 'configurations/hyperparameters/rf_s_tuned.json'
+  filepath_x = base_repo_dir / 'configurations/hyperparameters/rf_x_tuned_simF.json'
+  filepath_t = base_repo_dir / 'configurations/hyperparameters/rf_t_tuned_simF.json'
+  filepath_s = base_repo_dir / 'configurations/hyperparameters/rf_s_tuned_simF.json'
   with open(filepath_x, 'w') as fp:
     json.dump(rf_x_allsims, fp, default=np_encoder)
   with open(filepath_t, 'w') as fp:
