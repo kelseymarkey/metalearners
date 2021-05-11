@@ -171,7 +171,6 @@ simulate_causal_experiment <- function(ntrain = nrow(given_features),
                                        tau = "sparseLinearWeak",
                                        testseed = NULL,
                                        trainseed = NULL) {
-  
   ## First we define a base function which will later be called with different
   # setups:
   # the following function is the base function when creating the features.
@@ -188,8 +187,8 @@ simulate_causal_experiment <- function(ntrain = nrow(given_features),
              feat_distribution,
              given_features) {
       # this is the base creator, which is called by all other setups:
-      tau <- function(feat) {
-        as.numeric(m_t_truth(feat) - m_c_truth(feat))
+      tau <- function(Y1, Y0) {
+        as.numeric(Y1 - Y0)
       }
       if (is.null(given_features)) {
         given_features_fkt <- function(n, dim) {
@@ -215,21 +214,21 @@ simulate_causal_experiment <- function(ntrain = nrow(given_features),
           return(given_features[1:n, ])
         }
       }
-      getPscore <- function(feat) {
+      getPscore <- function(feat, confounder) {
         nn <- nrow(feat)
-        return(propscore(feat))
+        return(propscore(feat, confounder))
       }
       getW <- function(Pscore, feat) {
         nn <- nrow(feat)
         return(rbinom(nn, 1, Pscore))
       }
-      getYobs <- function(feat, W) {
-        nn <- nrow(feat)
+      getYobs <- function(Y1, Y0, W) {
+        nn <- length(W)
         return(ifelse(
           W == 1,
-          m_t_truth(feat) + rnorm(nn, 0, 1),
+          Y1 + rnorm(nn, 0, 1),
           # treated
-          m_c_truth(feat) + rnorm(nn, 0, 1)   # control
+          Y0 + rnorm(nn, 0, 1)   # control
         ))
       }
       
@@ -250,10 +249,13 @@ simulate_causal_experiment <- function(ntrain = nrow(given_features),
           as.numeric(as.factor(x))
         }
       }))
-      
-      Pscore_tr <- getPscore(feat_tr_numeric)
+      # generate unobserved confounder; only used for simF
+      confounder_tr <- rnorm(ntrain, 0, 1)
+      Pscore_tr <- getPscore(feat_tr_numeric, confounder_tr)
+      Y1_tr <- m_t_truth(feat_tr_numeric, confounder_tr)
+      Y0_tr <- m_c_truth(feat_tr_numeric)
       W_tr <- getW(Pscore_tr, feat_tr_numeric)
-      Yobs_tr <- getYobs(feat_tr_numeric, W_tr)
+      Yobs_tr <- getYobs(Y1_tr, Y0_tr, W_tr)
       if (!is.null(trainseed)) {
         .Random.seed <- current_seed  # sets back the current random stage
       }
@@ -269,9 +271,13 @@ simulate_causal_experiment <- function(ntrain = nrow(given_features),
           as.numeric(as.factor(x))
         }
       }))
-      Pscore_te <- getPscore(feat_te_numeric)
+      # generate unobserved confounder; only used for simF
+      confounder_te <- rnorm(ntest, 0, 1)
+      Pscore_te <- getPscore(feat_te_numeric, confounder_te)
+      Y1_te <- m_t_truth(feat_te_numeric, confounder_te)
+      Y0_te <- m_c_truth(feat_te_numeric)
       W_te <- getW(Pscore_te, feat_te_numeric)
-      Yobs_te <- getYobs(feat_te_numeric, W_te)
+      Yobs_te <- getYobs(Y1_te, Y0_te, W_te)
       if (!is.null(testseed)) {
         .Random.seed <- current_seed  # sets back the current random stage
       }
@@ -281,13 +287,19 @@ simulate_causal_experiment <- function(ntrain = nrow(given_features),
           feat_te = feat_te,
           Pscore_te = Pscore_te,
           W_te = W_te,
-          tau_te = tau(feat_te_numeric),
+          tau_te = tau(Y1_te, Y0_te),
           Yobs_te = Yobs_te,
           feat_tr = feat_tr,
           Pscore_tr = Pscore_tr,
           W_tr = W_tr,
-          tau_tr = tau(feat_tr_numeric),
-          Yobs_tr = Yobs_tr
+          tau_tr = tau(Y1_tr, Y0_tr),
+          Yobs_tr = Yobs_tr,
+          confounder_tr = confounder_tr,
+          confounder_te = confounder_te,
+          Y1_tr = Y1_tr,
+          Y0_tr = Y0_tr,
+          Y1_te = Y1_te,
+          Y0_te = Y0_te
         )
       )
     }
@@ -311,14 +323,14 @@ simulate_causal_experiment <- function(ntrain = nrow(given_features),
   if (tau == 'simB') {
     # create mu1/m_t_truth directly instead of doing it like
     # mu0/m_m_c_truth + tau = mu0 + mu1 - mu0 = mu1 as below
-    m_t_truth <- function(feat) {
+    m_t_truth <- function(feat, confounder) {
       d <- ncol(feat)
       beta1 = runif(d, 1, 30)
       as.matrix(feat) %*% beta1
     }
   } else {
-    m_t_truth <- function(feat)
-      m_c_truth(feat) + tau.simulate_causal_experiment[[tau]](feat)
+    m_t_truth <- function(feat, confounder)
+      m_c_truth(feat) + tau.simulate_causal_experiment[[tau]](feat, confounder)
   }
   
   propscore <- pscores.simulate_causal_experiment[[pscore]]
@@ -346,14 +358,17 @@ simulate_causal_experiment <- function(ntrain = nrow(given_features),
 #' @format NULL
 #' @export 
 pscores.simulate_causal_experiment <- list(
-  rct5 = function(feat) {.5}, 
-  rct1 = function(feat) {.1}, 
-  rct01 = function(feat) {.01},
-  osSparse1Linear = function(feat) {
+  rct5 = function(feat, confounder) {.5}, 
+  rct1 = function(feat, confounder) {.1}, 
+  rct01 = function(feat, confounder) {.01},
+  osSparse1Linear = function(feat, confounder) {
     apply(feat, 1, function(x)
       max(0.05, min(.95, x[1] / 2 + 1 / 4)))
   },
-  osSparse1Beta = function(feat) {0.25 + dbeta(feat$x1, 2, 4) / 4})
+  osSparse1Beta = function(feat, confounder) {0.25 + dbeta(feat$x1, 2, 4) / 4},
+  simF = function(feat, confounder){sapply(sapply((confounder+2*feat$x1)/2, 
+                                                  function(x) min(.95, x)), 
+                                           function(x) max(.05, x))})
 
 # mu0 functions ----------------------------------------------------------------
 #' @rdname causalExp
@@ -447,10 +462,10 @@ mu0.simulate_causal_experiment <- list(
 #' @format NULL
 #' @export 
 tau.simulate_causal_experiment <- list(
-  no = function(feat) {0},
-  const = function(feat) {10},
-  sparseLinearWeak = function(feat) {3 * feat$x1 + 5 * feat$x2},
-  fullLinearWeak = function(feat) {
+  no = function(feat, confounder) {0},
+  const = function(feat, confounder) {10},
+  sparseLinearWeak = function(feat, confounder) {3 * feat$x1 + 5 * feat$x2},
+  fullLinearWeak = function(feat, confounder) {
     oldSeed <- .Random.seed; on.exit({.Random.seed <<- oldSeed})
     set.seed(53979361)
     d <- ncol(feat)
@@ -458,8 +473,8 @@ tau.simulate_causal_experiment <- list(
     beta <- runif(d, -5, 5)
     as.matrix(feat) %*% beta   
   }, 
-  sparseLinearWeak = function(feat) {3 * feat$x1 + 5 * feat$x2},
-  fullLinearStrong = function(feat) {
+  sparseLinearWeak = function(feat, confounder) {3 * feat$x1 + 5 * feat$x2},
+  fullLinearStrong = function(feat, confounder) {
     oldSeed <- .Random.seed; on.exit({.Random.seed <<- oldSeed})
     set.seed(53979361)
     d <- ncol(feat)
@@ -467,7 +482,7 @@ tau.simulate_causal_experiment <- list(
     beta <- runif(d, -50, 50)
     as.matrix(feat) %*% beta   
   }, 
-  fullLocallyLinear = function(feat) {
+  fullLocallyLinear = function(feat, confounder) {
     oldSeed <- .Random.seed; on.exit({.Random.seed <<- oldSeed})
     set.seed(6482481)
     d <- ncol(feat)
@@ -484,20 +499,23 @@ tau.simulate_causal_experiment <- list(
         as.matrix(feat) %*% beta2,
         as.matrix(feat) %*% beta3))
   }, 
-  sparseNonLinear3 = function(feat) {
+  sparseNonLinear3 = function(feat, confounder) {
     (1 + 1 / (1 + exp(-20 * (feat$x1 - 1 / 3)))) *
       (1 + 1 / (1 + exp(-20 * (feat$x2 - 1 / 3))))
   },
-  simA = function(feat) {
+  simA = function(feat, confounder) {
     ifelse(feat$x2 > 0.1, 8, 0)
   },
   
   # When tau = simB then this tau logic is not actually used
-  simB = function(feat) {0},
+  simB = function(feat, confounder) {0},
   
-  simC = function(feat) {
+  simC = function(feat, confounder) {
     4 / ((1 + exp(-12 * (feat$x1 - 0.5))) *
             (1 + exp(-12 * (feat$x2 - 0.5)))
     )
+  },
+  simF = function(feat, confounder) {
+    ifelse(feat$x2 > 0.1, 8, 0) + 2*confounder
   }
 )
