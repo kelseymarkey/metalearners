@@ -113,8 +113,8 @@ def fit_metalearner(X_train, y_train, W_train, X_test,
                                         n_jobs=4,
                                         random_state=42, 
                                         max_iter=500),
-                     'rfc': partial(RandomForestClassifier, 
-                                   n_jobs=4, random_state=42)}
+                     'rfc': partial(RandomForestClassifier,
+                                    n_jobs=4, random_state=42)}
                      
     if config.metalearner == 'T':
         
@@ -271,7 +271,26 @@ def main(args):
 
                 rows.append([sim, i, train_size, mses['T'], mses['S'], mses['X']])
 
-    columns=['simulation', 'trial', 'n', 'T_mse', 'S_mse', 'X_mse']
+        print('End of ', sim)
+        # Export intermediary results
+        columns=['simulation', 'trial', 'n', 'T_mse', 'S_mse', 'X_mse']
+        results_full_sim = pd.DataFrame(rows, columns=columns)
+        results_sim = results_full_sim.groupby(['simulation', 'n'])[
+                        'T_mse', 'S_mse', 'X_mse'].mean().reset_index()
+
+        # Save results with filename of the form results_{A}_{B}_{C}_{D}.csv where A is the substring from base_learners
+        # filename, B is the substring from hyperpameter filenames, C is # of samples, and D is sim.
+        filename_str = bl_substr + '_' + args.hp_substr + '_' + str(args.samples)
+        filename_full_sim = 'results_full_' + filename_str +  '_' + sim + '.csv'
+        filename_results_sim = 'results_' + filename_str + '_' + sim + '.csv'
+        mse_out_dir = os.path.join(base_repo_dir, 'results', 'mse')
+        if not os.path.exists(mse_out_dir):
+            os.makedirs(mse_out_dir)
+        results_sim.to_csv(os.path.join(mse_out_dir, filename_results_sim), index=False)
+        results_full_sim.to_csv(os.path.join(mse_out_dir, filename_full_sim), index=False)
+
+
+    # Export all results at the end of all sims
     results_full = pd.DataFrame(rows, columns=columns)
     results = results_full.groupby(['simulation', 'n'])['T_mse', 'S_mse', 'X_mse'].mean().reset_index()
     print('---------------------------')
@@ -279,11 +298,8 @@ def main(args):
 
     # Save results with filename of the form results_{A}_{B}_{C}.csv where A is the substring from base_learners
     # filename, B is the substring from hyperpameter filenames, and C is # of samples.
-    filename_full = 'results_full_' + bl_substr + '_' + args.hp_substr + '_' + str(args.samples) + '.csv'
-    filename_results = 'results_' + bl_substr + '_' + args.hp_substr + '_' + str(args.samples) + '.csv'
-    mse_out_dir = os.path.join(base_repo_dir, 'results', 'mse')
-    if not os.path.exists(mse_out_dir):
-        os.makedirs(mse_out_dir)
+    filename_full = 'results_full_' + filename_str + '.csv'
+    filename_results = 'results_' + filename_str + '.csv'
     results.to_csv(os.path.join(mse_out_dir, filename_results), index=False)
     results_full.to_csv(os.path.join(mse_out_dir, filename_full), index=False)
 
