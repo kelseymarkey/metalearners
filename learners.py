@@ -241,6 +241,7 @@ def main(args):
                                                          config, 
                                                         export_preds=True)
                         if metalearner=='X':
+                            print("Exporting X learner train and test preds dataframes.")
                             # parse export_df tuple
                             export_df_train = export_df[0]
                             export_df_test = export_df[1]
@@ -256,6 +257,7 @@ def main(args):
                             export_df_train.to_parquet(os.path.join(export_dir, filename_train))
                             export_df_test.to_parquet(os.path.join(export_dir, filename_test))
                         else:
+                            print("Exporting ", metalearner, " learner test preds dataframes.")
                             filename_df = metalearner + '_' + sim + '_' + bl_substr + \
                                              '_' + args.hp_substr + '_test_preds.parquet'
                             # Save test preds
