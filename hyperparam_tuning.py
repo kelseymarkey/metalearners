@@ -170,11 +170,11 @@ def tune_with_learners(train, val, sim, n_iter=1000):
 
   # X learner
   params_X_mu0 = {'n_estimators': rng.choice(n_estim, size=n_iter),
-                  'max_samples': np.around(rng.choice(max_samp, size=n_iter), decimals=1),
+                  'max_samples': rng.choice(max_samp, size=n_iter),
                   'max_features': rng.choice(max_feat, size=n_iter),
                   'min_samples_leaf': rng.choice(min_samples_leaf, size=n_iter)}
   params_X_mu1 = {'n_estimators': rng.choice(n_estim, size=n_iter),
-                  'max_samples': np.around(rng.choice(max_samp, size=n_iter), decimals=1),
+                  'max_samples': rng.choice(max_samp, size=n_iter),
                   'max_features': rng.choice(max_feat, size=n_iter),
                   'min_samples_leaf': rng.choice(min_samples_leaf, size=n_iter)}
   params_X_tau0 = {'n_estimators': rng.choice(n_estim, size=n_iter),
@@ -182,25 +182,25 @@ def tune_with_learners(train, val, sim, n_iter=1000):
                    'max_features': rng.choice(max_feat, size=n_iter),
                    'min_samples_leaf': rng.choice(min_samples_leaf, size=n_iter)}
   params_X_tau1 = {'n_estimators': rng.choice(n_estim, size=n_iter),
-                   'max_samples': np.around(rng.choice(max_samp, size=n_iter), decimals=1),
+                   'max_samples': rng.choice(max_samp, size=n_iter),
                    'max_features': rng.choice(max_feat, size=n_iter),
                    'min_samples_leaf': rng.choice(min_samples_leaf, size=n_iter)}
   params_X_g = {'n_estimators': rng.choice(n_estim_g, size=n_iter),
-                   'max_samples': np.around(rng.choice(max_samp, size=n_iter), decimals=1),
+                   'max_samples': rng.choice(max_samp, size=n_iter),
                    'max_features': rng.choice(max_feat, size=n_iter),
                    'min_samples_leaf': rng.choice(min_samples_leaf_g, size=n_iter)}            
   # T learner
   params_T_mu0 = {'n_estimators': rng.choice(n_estim, size=n_iter),
-                  'max_samples': np.around(rng.choice(max_samp, size=n_iter), decimals=1),
+                  'max_samples': rng.choice(max_samp, size=n_iter),
                   'max_features': rng.choice(max_feat, size=n_iter),
                   'min_samples_leaf': rng.choice(min_samples_leaf, size=n_iter)}
   params_T_mu1 = {'n_estimators': rng.choice(n_estim, size=n_iter),
-                  'max_samples': np.around(rng.choice(max_samp, size=n_iter), decimals=1),
+                  'max_samples': rng.choice(max_samp, size=n_iter),
                   'max_features': rng.choice(max_feat, size=n_iter),
                   'min_samples_leaf': rng.choice(min_samples_leaf, size=n_iter)}
   # S learner
   params_S_mu = {'n_estimators': rng.choice(n_estim, size=n_iter),
-                 'max_samples': np.around(rng.choice(max_samp, size=n_iter), decimals=1),
+                 'max_samples': rng.choice(max_samp, size=n_iter),
                  'max_features': rng.choice(max_feat, size=n_iter),
                  'min_samples_leaf': rng.choice(min_samples_leaf, size=n_iter)}
 
