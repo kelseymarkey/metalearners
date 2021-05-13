@@ -5,8 +5,8 @@ Estimating and evaluating bootstrap confidence intervals on simulated data
 Alene Rhea, May 2021
 
 Usage example: 
-python3 conf_int.py --sim A --outfile test --train_size 5000 \
---config_file ci_t_rf.json --hyperparams_file rf_t_default.json --B 5
+python3 conf_int.py --meta S --sim E --train_size 5000 --B 5 \
+--base_learner_filename base_learners_iw_g_logreg.json --hp_substr default 
 
 To install varname:
 pip install -U varname
@@ -18,6 +18,7 @@ import pandas as pd
 from scipy.stats import norm
 from functools import partial
 from varname import nameof
+import re
 from learners import fit_predict_ci
 import utils.configClass
 import utils.metaClass
@@ -76,21 +77,17 @@ def main(args):
     # Read learner config from JSON
     meta_base_dict = json.load(open(base_repo_dir /\
                                     'configurations/base_learners'/\
-                                     args.config_file))
-
-    # Get name of metaleaner (should only be 1 in file)
-    meta = list(meta_base_dict.keys())[0]
+                                     args.base_learner_filename))
 
     # Read hyperparameters file
-    rf_params = json.load(open(base_repo_dir / 'configurations' /\
-                                                'hyperparameters' /\
-                                                args.hyperparams_file))
+    hp = json.load(open(base_repo_dir / 'configurations' / 'hyperparameters' / 'rf_{}_{}.json'.format(args.meta.lower(),
+                                                                                                     args.hp_substr)))
 
     # create config object
     # Needs to be updated for RandomForestClassifier params (for g)
-    config = config_from_json(meta=meta, sim=args.sim, 
+    config = config_from_json(meta=args.meta, sim=args.sim, 
                                 meta_base_dict=meta_base_dict, 
-                                hyperparams=rf_params)
+                                hyperparams=hp)
 
     # Read train and test from sample 1
     # Note: Using data repo structure with no train_size directory level
@@ -100,6 +97,11 @@ def main(args):
                                  'sim{}'.format(args.sim)/train_filename)
     test = pd.read_parquet(base_repo_dir/'data'/\
                                  'sim{}'.format(args.sim)/test_filename)
+
+    # Create filename substring for use in results files
+    bl_substr = re.search('base_learners_(.*?).json', args.base_learner_filename).group(1)
+    filename_str = '{}_{}_{}_sim{}_tsize{}_B{}'\
+                    .format(bl_substr, args.hp_substr, args.meta, args.sim, args.train_size, args.B)
 
     # Sample training set from super-set of 300K
     if args.train_size < len(train_full):
@@ -168,12 +170,18 @@ def main(args):
         # Save mean CI length
         coverage.loc[c, 'mean_length'] = np.mean(results[c+'_length'])
 
-    # Save big results file (including all predicitions)
-    results.to_csv('results/ci/full/'+args.outfile+'_full.csv')
+    # Save full results file (including all predicitions)
+    full_dir = os.path.join(base_repo_dir, 'results', 'ci', 'full')
+    if not os.path.exists(full_dir):
+            os.makedirs(full_dir)
+    results.to_csv(os.path.join(full_dir, filename_str+'_full.csv'), index=False)
 
     # Save condensed results file
-    coverage.to_csv('results/ci/simple/'+args.outfile+'_simple.csv')
-    
+    simple_dir = os.path.join(base_repo_dir, 'results', 'ci', 'simple')
+    if not os.path.exists(simple_dir):
+            os.makedirs(simple_dir)
+    coverage.to_csv(os.path.join(simple_dir, filename_str+'_simple.csv'), index=False)
+
 
 if __name__ == "__main__":
 
@@ -183,17 +191,22 @@ if __name__ == "__main__":
     # Required arguments
     parser.add_argument("--sim", type=str, 
                         help='Which simulation to calculate CIs on')
+    parser.add_argument("--meta", type=str,
+                        help="Which metalearner to use. Must be one of 'X', 'T', or 'S'")
     parser.add_argument("--outfile", type=str, 
                         help='String to insert into outfile names. Should uniquely identify the type of learner & config being tested, as well as the simulation.')
-    parser.add_argument("--config_file", type=str,
-                        help="Filename (with extension) of JSON file containing base learner set-up. Must be stored in configurations/base_learners")
-    parser.add_argument("--hyperparams_file", type=str,
-                        help="Filename (with extension) of JSON file containing hyperparameters for base-learners. Must be stored in configurations/hyperparameters")
+    parser.add_argument("--base_learner_filename", type=str, default='base_learners.json',
+                        help='Name of base learner file to use. Should be of form base_learners_XX.json ' +
+                        'and reside in configurations/base_learners')
+    parser.add_argument("--hp_substr", type=str, default='default',
+                        help='The naming convention for the hyperparameter files that should be used. For ' +
+                        'example if user wishes to use rf_t_default.json/rf_s_default.json/etc. then the string ' +
+                        'passed should be default.')
 
     # Optional arguments
     parser.add_argument("--train_seed", type=int, default=42,
                         help='Seed to use to sample training set from 300K superset')
-    parser.add_argument("--train_size", type=int, default=10000,
+    parser.add_argument("--train_size", type=int, default=20000,
                         help='Number of observations to sample to create training set')
     parser.add_argument("--alpha", type=float, default=0.05,
                         help='Significance level for confidence intervals. Must be in (0,1). Default of 0.05 corresponds to 95% CI.')
