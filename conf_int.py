@@ -170,11 +170,11 @@ def main(args):
         # Save mean CI length
         coverage.loc[c, 'mean_length'] = np.mean(results[c+'_length'])
 
-    # Save full results file (including all predicitions)
+    # Save full results file to parquet (including all predicitions)
     full_dir = os.path.join(base_repo_dir, 'results', 'ci', 'full')
     if not os.path.exists(full_dir):
             os.makedirs(full_dir)
-    results.to_csv(os.path.join(full_dir, filename_str+'_full.csv'), index=False)
+    results.to_parquet(os.path.join(full_dir, filename_str+'_full.parquet'))
 
     # Save condensed results file
     simple_dir = os.path.join(base_repo_dir, 'results', 'ci', 'simple')
