@@ -7,9 +7,6 @@ Alene Rhea, May 2021
 Usage example: 
 python3 conf_int.py --meta S --sim E --train_size 5000 --B 5 \
 --base_learner_filename base_learners_iw_g_logreg.json --hp_substr default 
-
-To install varname:
-pip install -U varname
 '''
 
 import argparse, os, pathlib, json
@@ -17,7 +14,6 @@ import numpy as np
 import pandas as pd
 from scipy.stats import norm
 from functools import partial
-from varname import nameof
 import re
 from learners import fit_predict_ci
 import utils.configClass
@@ -137,8 +133,7 @@ def main(args):
     results['true_tau'] = test['tau']
 
     # Array of string-names of conf interval types
-    ci_types = np.array([nameof(args.order1norm), nameof(args.smooth), 
-                nameof(args.quantile), nameof(args.t)])
+    ci_types = np.array(['order1norm', 'smooth', 'quantile', 't'])
 
     # Include only those passed as true
     ci_types = ci_types[[args.order1norm, args.smooth, 
@@ -180,7 +175,7 @@ def main(args):
     simple_dir = os.path.join(base_repo_dir, 'results', 'ci', 'simple')
     if not os.path.exists(simple_dir):
             os.makedirs(simple_dir)
-    coverage.to_csv(os.path.join(simple_dir, filename_str+'_simple.csv'), index=False)
+    coverage.to_csv(os.path.join(simple_dir, filename_str+'_simple.csv'), index=True, index_label='ci_type')
 
 
 if __name__ == "__main__":
