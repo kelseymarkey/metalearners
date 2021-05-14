@@ -8,9 +8,10 @@ Usage example:
 python3 conf_int.py --meta S --sim E --train_size 5000 --B 5 \
 --base_learner_filename base_learners_iw_g_logreg.json --hp_substr default 
 
-python conf_int.py --meta T --sim E --train_size 20000 --B 10 \
+python conf_int.py --meta S --sim E --train_size 20000 --B 10000 \
 --base_learner_filename base_learners_iw_g_rfc.json --hp_substr default \
---percentile --normal --basic --paper --results_file iw_g_rfc_default_T_simE_tsize20000_B1000_full.parquet 
+--percentile --normal --basic --paper \
+--results_file iw_g_rfc_default_S_simE_tsize20000_B10000_full.parquet 
 '''
 
 import argparse, os, pathlib, json
