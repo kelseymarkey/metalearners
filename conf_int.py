@@ -7,6 +7,10 @@ Alene Rhea, May 2021
 Usage example: 
 python3 conf_int.py --meta S --sim E --train_size 5000 --B 5 \
 --base_learner_filename base_learners_iw_g_logreg.json --hp_substr default 
+
+python conf_int.py --meta T --sim E --train_size 20000 --B 10 \
+--base_learner_filename base_learners_iw_g_rfc.json --hp_substr default \
+--percentile --normal --basic --paper --results_file iw_g_rfc_default_T_simE_tsize20000_B1000_full.parquet 
 '''
 
 import argparse, os, pathlib, json
@@ -56,8 +60,8 @@ def get_ci (boot_preds, alpha, ci_type, M=None,
         sigma = np.std(boot_preds, axis=1)
 
         # CI is asymmetric around preds on original test set
-        lower = center_preds - np.quantile(sigma, q=alpha/2, axis=1)
-        upper = center_preds + np.quantile(sigma, q=(1-alpha)/2, axis=1)
+        lower = center_preds - sigma*np.quantile(boot_preds, q=alpha/2, axis=1)
+        upper = center_preds + sigma*np.quantile(boot_preds, q=(1-alpha)/2, axis=1)
     
     # Simple percentile method
     elif ci_type=='percentile':
@@ -165,8 +169,11 @@ def main(args):
     else:
         train = train_full
 
+    # Set flag to save full results file
+    save_full = True
+
     # Generate bootstrap predictions if results file not already passed
-    if args.results_file:
+    if not args.results_file:
 
         # Initialize array to hold all bootstrap predictions
         all_preds = np.zeros((len(test), args.B))
@@ -209,24 +216,32 @@ def main(args):
         # read in corresponding simple results
         coverage = pd.read_csv(base_repo_dir/'results/ci/simple'/args.results_file.replace('full', 'simple').replace('parquet', 'csv'))
 
-        if args.B:
-            if args.B!=len(boot_cols):
-                # Clear old CI information and make smaller version of results df
-                results = pd.DataFrame(all_preds[:,:args.B], columns=['b{}_tau'.format(x+1) for x in np.arange(args.B)])
-                
-                # Save true tau
-                results['true_tau'] = test['tau']
+        if args.B<len(boot_cols):
+            # Limit all_preds to the first B columns
+            all_preds = all_preds[:,:args.B]
 
-                # Initialize dataframe to hold simple coverage results for this B value
-                coverage = pd.DataFrame(columns=['ci_type', 'coverage', 'mean_length'])
+            # Clear old CI information and make smaller version of results df
+            results = pd.DataFrame(all_preds, columns=['b{}_tau'.format(x+1) for x in np.arange(args.B)])
+            
+            # Save true tau
+            results['true_tau'] = test['tau']
 
+            # Initialize dataframe to hold simple coverage results for this B value
+            coverage = pd.DataFrame(columns=['ci_type', 'coverage', 'mean_length'])
+
+            # Do not save full version of results if bigger version of B exists
+            save_full = False
         
     for c in ci_types:
 
+        if c in coverage.ci_type.values:
+            print('Skipping '+c+' CIs. Already exists in simple results file.')
+            continue
+
         # Get CI lower and upper bounds
-        lower, upper = get_ci(boot_preds = all_preds, alpha =args.alpha, 
-                              ci_type = c,
-                              train=train, test=test, config=config) # for order1norm
+        lower, upper = get_ci(boot_preds = all_preds, alpha=args.alpha, 
+                              ci_type = c, M=args.M,
+                              train=train, test=test, config=config)
         results[c+'_lower'] = lower
         results[c+'_upper'] = upper
 
@@ -242,12 +257,15 @@ def main(args):
                                     'coverage':np.sum(results[c+'_cover'])/len(test),
                                     'mean_length':np.mean(results[c+'_length'])},
                                     ignore_index=True)
+        # print progress update
+        print(c + ' CIs completed')
 
-    # Save full results file to parquet (including all predicitions)
-    full_dir = os.path.join(base_repo_dir, 'results', 'ci', 'full')
-    if not os.path.exists(full_dir):
-            os.makedirs(full_dir)
-    results.to_parquet(os.path.join(full_dir, filename_str+'_full.parquet'))
+    if save_full:
+        # Save full results file to parquet (including all predicitions)
+        full_dir = os.path.join(base_repo_dir, 'results', 'ci', 'full')
+        if not os.path.exists(full_dir):
+                os.makedirs(full_dir)
+        results.to_parquet(os.path.join(full_dir, filename_str+'_full.parquet'))
 
     # Save condensed results file
     simple_dir = os.path.join(base_repo_dir, 'results', 'ci', 'simple')
@@ -262,6 +280,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     # Required arguments
+    parser.add_argument("--B", type=int, 
+                        help='Number of bootstrap samples to build metalearners with. Can pass new value of B if bootstrap_preds already exists.')
     parser.add_argument("--sim", type=str, 
                         help='Which simulation to calculate CIs on')
     parser.add_argument("--meta", type=str,
@@ -281,8 +301,8 @@ if __name__ == "__main__":
                         help='Number of observations to sample to create training set')
     parser.add_argument("--alpha", type=float, default=0.05,
                         help='Significance level for confidence intervals. Must be in (0,1). Default of 0.05 corresponds to 95% CI.')
-    parser.add_argument("--B", type=int, default=None,
-                        help='Number of bootstrap samples to build metalearners with.')
+    parser.add_argument("--M", type=int, default=None,
+                        help="Number of second-level bootstrap samples to use in studentized CI method.")
     parser.add_argument("--normal", action='store_true',
                         help="Boolean flag to construct CIs with 1st order normal approximation. Will default to true if no other CI types are selected.")
     parser.add_argument("--paper", action='store_true',
