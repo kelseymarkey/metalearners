@@ -160,41 +160,49 @@ def tune_with_learners(train, val, sim, n_iter=1000):
                     'X': {'mu_0': 'rf', 'mu_1': 'rf', 'tau_0': 'rf', 'tau_1': 'rf', 'g': 'rfc'}}
 
   # Sample n_iter parameter settings for each base learner
+
+  n_estim = np.arange(100, 1201, 20, dtype=int)
+  n_estim_g = np.arange(100, 801, 20, dtype=int)
+  max_samp = [0.3, 0.45, 0.6, 0.75, 0.9, 0.99]
+  max_feat = range(10, len(X.columns)+1)
+  min_samples_leaf = range(1, 11)
+  min_samples_leaf_g = range(1, 21)
+
   # X learner
-  params_X_mu0 = {'n_estimators': rng.choice(np.arange(48, 496, 16, dtype=int), size=n_iter),
-                  'max_samples': np.around(rng.choice([0.1*(i+1) for i in range(9)], size=n_iter), decimals=1),
-                  'max_features': rng.choice(range(1, len(X.columns)+1), size=n_iter),
-                  'min_samples_leaf': rng.choice(range(1, 31), size=n_iter)}
-  params_X_mu1 = {'n_estimators': rng.choice(np.arange(48, 496, 16, dtype=int), size=n_iter),
-                  'max_samples': np.around(rng.choice([0.1*(i+1) for i in range(9)], size=n_iter), decimals=1),
-                  'max_features': rng.choice(range(1, len(X.columns)+1), size=n_iter),
-                  'min_samples_leaf': rng.choice(range(1, 31), size=n_iter)}
-  params_X_tau0 = {'n_estimators': rng.choice(np.arange(48, 496, 16, dtype=int), size=n_iter),
-                   'max_samples': rng.choice([0.1*(i+1) for i in range(9)], size=n_iter),
-                   'max_features': rng.choice(range(1, len(X.columns)+1), size=n_iter),
-                   'min_samples_leaf': rng.choice(range(1, 31), size=n_iter)}
-  params_X_tau1 = {'n_estimators': rng.choice(np.arange(48, 496, 16, dtype=int), size=n_iter),
-                   'max_samples': np.around(rng.choice([0.1*(i+1) for i in range(9)], size=n_iter), decimals=1),
-                   'max_features': rng.choice(range(1, len(X.columns)+1), size=n_iter),
-                   'min_samples_leaf': rng.choice(range(1, 31), size=n_iter)}
-  params_X_g = {'n_estimators': rng.choice(np.arange(48, 496, 16, dtype=int), size=n_iter),
-                   'max_samples': np.around(rng.choice([0.1*(i+1) for i in range(9)], size=n_iter), decimals=1),
-                   'max_features': rng.choice(range(1, len(X.columns)+1), size=n_iter),
-                   'min_samples_leaf': rng.choice(range(1, 31), size=n_iter)}                 
+  params_X_mu0 = {'n_estimators': rng.choice(n_estim, size=n_iter),
+                  'max_samples': rng.choice(max_samp, size=n_iter),
+                  'max_features': rng.choice(max_feat, size=n_iter),
+                  'min_samples_leaf': rng.choice(min_samples_leaf, size=n_iter)}
+  params_X_mu1 = {'n_estimators': rng.choice(n_estim, size=n_iter),
+                  'max_samples': rng.choice(max_samp, size=n_iter),
+                  'max_features': rng.choice(max_feat, size=n_iter),
+                  'min_samples_leaf': rng.choice(min_samples_leaf, size=n_iter)}
+  params_X_tau0 = {'n_estimators': rng.choice(n_estim, size=n_iter),
+                   'max_samples': rng.choice(max_samp, size=n_iter),
+                   'max_features': rng.choice(max_feat, size=n_iter),
+                   'min_samples_leaf': rng.choice(min_samples_leaf, size=n_iter)}
+  params_X_tau1 = {'n_estimators': rng.choice(n_estim, size=n_iter),
+                   'max_samples': rng.choice(max_samp, size=n_iter),
+                   'max_features': rng.choice(max_feat, size=n_iter),
+                   'min_samples_leaf': rng.choice(min_samples_leaf, size=n_iter)}
+  params_X_g = {'n_estimators': rng.choice(n_estim_g, size=n_iter),
+                   'max_samples': rng.choice(max_samp, size=n_iter),
+                   'max_features': rng.choice(max_feat, size=n_iter),
+                   'min_samples_leaf': rng.choice(min_samples_leaf_g, size=n_iter)}            
   # T learner
-  params_T_mu0 = {'n_estimators': rng.choice(np.arange(48, 496, 16, dtype=int), size=n_iter),
-                  'max_samples': np.around(rng.choice([0.1*(i+1) for i in range(9)], size=n_iter), decimals=1),
-                  'max_features': rng.choice(range(1, len(X.columns)+1), size=n_iter),
-                  'min_samples_leaf': rng.choice([1, 3, 5, 10, 30, 100], size=n_iter)}
-  params_T_mu1 = {'n_estimators': rng.choice(np.arange(48, 496, 16, dtype=int), size=n_iter),
-                  'max_samples': np.around(rng.choice([0.1*(i+1) for i in range(9)], size=n_iter), decimals=1),
-                  'max_features': rng.choice(range(1, len(X.columns)+1), size=n_iter),
-                  'min_samples_leaf': rng.choice([1, 3, 5, 10, 30, 100], size=n_iter)}
+  params_T_mu0 = {'n_estimators': rng.choice(n_estim, size=n_iter),
+                  'max_samples': rng.choice(max_samp, size=n_iter),
+                  'max_features': rng.choice(max_feat, size=n_iter),
+                  'min_samples_leaf': rng.choice(min_samples_leaf, size=n_iter)}
+  params_T_mu1 = {'n_estimators': rng.choice(n_estim, size=n_iter),
+                  'max_samples': rng.choice(max_samp, size=n_iter),
+                  'max_features': rng.choice(max_feat, size=n_iter),
+                  'min_samples_leaf': rng.choice(min_samples_leaf, size=n_iter)}
   # S learner
-  params_S_mu = {'n_estimators': rng.choice(np.arange(48, 496, 16, dtype=int), size=n_iter),
-                 'max_samples': np.around(rng.choice([0.1*(i+1) for i in range(9)], size=n_iter), decimals=1),
-                 'max_features': rng.choice(range(1, len(X.columns)+1), size=n_iter),
-                 'min_samples_leaf': rng.choice([1, 3, 5, 10, 30, 100], size=n_iter)}
+  params_S_mu = {'n_estimators': rng.choice(n_estim, size=n_iter),
+                 'max_samples': rng.choice(max_samp, size=n_iter),
+                 'max_features': rng.choice(max_feat, size=n_iter),
+                 'min_samples_leaf': rng.choice(min_samples_leaf, size=n_iter)}
 
   # Find best configuration for each learner
   mse_list_X = []
@@ -311,8 +319,7 @@ def main():
 
   # Read in data
   i = 0
-  #sims = ['simA', 'simB', 'simC', 'simD', 'simE', 'simF']
-  sims = ['simF']
+  sims = ['simA', 'simB', 'simC', 'simD', 'simE', 'simF']
   train_size = 20000
   val_size = 10000
   rf_x_allsims = {}
@@ -332,32 +339,32 @@ def main():
           return object.item()
     # Uncomment next line and comment line after that to tune individually
     # rf_x, rf_t, rf_s = tune_individually(train, n_iter=1000)
-    rf_x, rf_t, rf_s = tune_with_learners(train, val, sim, n_iter=200)
+    rf_x, rf_t, rf_s = tune_with_learners(train, val, sim, n_iter=2000)
     print(rf_x, rf_t, rf_s)
     
     # add best params to allsims dictionaries
     for key, val in rf_x.items():
-      if sim=='simF':
+      if sim=='simA':
         rf_x_allsims[key]={}
         rf_x_allsims[key][sim] = val
       else:
         rf_x_allsims[key][sim] = val
     for key, val in rf_t.items():
-      if sim=='simF':
+      if sim=='simA':
         rf_t_allsims[key] = {}
         rf_t_allsims[key][sim] = val
       else:
         rf_t_allsims[key][sim] = val
     for key, val in rf_s.items():
-      if sim=='simF':
+      if sim=='simA':
         rf_s_allsims[key] = {}
         rf_s_allsims[key][sim] = val
       else:
         rf_s_allsims[key][sim] = val
 
-  filepath_x = base_repo_dir / 'configurations/hyperparameters/rf_x_tuned_simF.json'
-  filepath_t = base_repo_dir / 'configurations/hyperparameters/rf_t_tuned_simF.json'
-  filepath_s = base_repo_dir / 'configurations/hyperparameters/rf_s_tuned_simF.json'
+  filepath_x = base_repo_dir / 'configurations/hyperparameters/rf_x_tuned_v2.json'
+  filepath_t = base_repo_dir / 'configurations/hyperparameters/rf_t_tuned_v2.json'
+  filepath_s = base_repo_dir / 'configurations/hyperparameters/rf_s_tuned_v2.json'
   with open(filepath_x, 'w') as fp:
     json.dump(rf_x_allsims, fp, default=np_encoder)
   with open(filepath_t, 'w') as fp:
