@@ -261,6 +261,12 @@ def main(args):
         # print progress update
         print(c + ' CIs completed')
 
+    # Save condensed results file
+    simple_dir = os.path.join(base_repo_dir, 'results', 'ci', 'simple')
+    if not os.path.exists(simple_dir):
+            os.makedirs(simple_dir)
+    coverage.to_csv(os.path.join(simple_dir, filename_str+'_simple.csv'), index=False)
+
     if save_full:
         # Save full results file to parquet (including all predicitions)
         full_dir = os.path.join(base_repo_dir, 'results', 'ci', 'full')
@@ -268,11 +274,7 @@ def main(args):
                 os.makedirs(full_dir)
         results.to_parquet(os.path.join(full_dir, filename_str+'_full.parquet'))
 
-    # Save condensed results file
-    simple_dir = os.path.join(base_repo_dir, 'results', 'ci', 'simple')
-    if not os.path.exists(simple_dir):
-            os.makedirs(simple_dir)
-    coverage.to_csv(os.path.join(simple_dir, filename_str+'_simple.csv'), index=False)
+
 
 
 if __name__ == "__main__":
