@@ -85,6 +85,9 @@ def get_ci (boot_preds, alpha, ci_type, M=None,
         # https://mikelove.wordpress.com/2010/02/15/bootstrap-t/
         # https://www.stat.cmu.edu/~ryantibs/advmethods/notes/bootstrap.pdf
 
+        # train another model on the original train set
+        center_preds = fit_predict_ci(train=train, test=test, 
+                                      config=config)
         B = boot_preds.shape[1]
 
         # Initialize array to hold "pivotal" values
@@ -111,10 +114,6 @@ def get_ci (boot_preds, alpha, ci_type, M=None,
 
         # Get standard deviation of 1st-level bootstrap preds
         sigma = np.std(boot_preds, axis=1)
-
-        # train another model on the original train set
-        center_preds = fit_predict_ci(train=train, test=test, 
-                                      config=config)
 
         # asymmetric around new preds, based on pivot*sd of 1st level
         lower = center_preds - sigma*np.quantile(all_t, q=1-(alpha/2), axis=1)
