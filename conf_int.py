@@ -262,12 +262,17 @@ def main(args):
 
     # Save condensed results file
     simple_dir = os.path.join(base_repo_dir, 'results', 'ci', 'simple')
-    if not os.path.exists(simple_dir):
+    simple_file = os.path.join(simple_dir, filename_str+'_simple.csv')
+    if os.path.exists(simple_file):
+        # Concatenate with other results if already exist
+        old_coverage = pd.read_csv(simple_file)
+        coverage = pd.concat([old_coverage, coverage])
+    elif not os.path.exists(simple_dir):
             os.makedirs(simple_dir)
-    coverage.to_csv(os.path.join(simple_dir, filename_str+'_simple.csv'), index=False)
+    coverage.to_csv(simple_file, index=False)
 
     if save_full:
-        # Save full results file to parquet (including all predicitions)
+        # Save full results file to parquet (including all predictions)
         full_dir = os.path.join(base_repo_dir, 'results', 'ci', 'full')
         if not os.path.exists(full_dir):
                 os.makedirs(full_dir)
