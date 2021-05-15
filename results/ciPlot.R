@@ -1,3 +1,12 @@
+# Script to generate plots of confidence interval results
+# Intended to be run from within RStudio; does not save plots
+# (could be easily ammended to automatically save plots as images)
+# Author: Alene Rhea, May 2021
+
+# BEFORE RUNNING THIS SCRIPT, MUST RUN utils/combineResults.py
+# This will generate an updated 'all_ci_mse_simple.csv' file
+
+
 library(ggplot2)
 library(gridExtra)
 library(lemon)
