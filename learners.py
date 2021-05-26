@@ -16,7 +16,7 @@ from utils.utils import strat_sample, split_Xy_train_test, config_from_json
 
 '''
 Small run usage example: python learners.py --samples 3 --training_sizes 5000
-                        --base_learner_filename base_learners_rf.json --hp_substr default
+                        --base_learner_filename base_learners_iw_g_logreg.json --hp_substr default
 Currently fitting RF-based T, S, and X-Learner, predicting CATE for each row of test set, & saving MSE results.
 '''
 
