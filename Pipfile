@@ -1,0 +1,20 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+econml = "*"
+fastparquet = "*"
+scikit-learn = "~=0.23"
+tqdm = "*"
+numpy = "*"
+pandas = "*"
+scipy = "*"
+matplotlib = "*"
+seaborn = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.7"
